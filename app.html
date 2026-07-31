@@ -476,6 +476,7 @@ const SUPABASE_URL = 'https://pxeuuxdqayzffzbymdrq.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_KlW5G6ePGX7S1K1rLBt3kg_W-YsG7sm';
 let supabaseClient = null;
 let useCloud = false;
+let syncTimer = null;
 
 /* ========== 常量 ========== */
 const STORAGE_KEY = 'task_workbench_v1';
@@ -678,9 +679,12 @@ function saveDataLocal(){
 }
 
 /* ========== Supabase 数据加载 ========== */
-async function loadData(){
+async function loadData(options){
+  options=options||{};
+  const silent=!!options.silent;
+  const keepCloudOnError=!!options.keepCloudOnError;
   if(!useCloud){ loadDataLocal(); return; }
-  setLoading(true);
+  if(!silent) setLoading(true);
   try{
     const [
       {data:tasks,error:e1},{data:trainingFiles,error:e2},{data:trainingCourses,error:e3},
@@ -720,17 +724,23 @@ async function loadData(){
     };
   }catch(err){
     console.error('Load error:',err);
-    showToast('数据加载失败，已切换本地模式');
-    useCloud=false;
-    setConnStatus('本地模式','#f59e0b');
-    loadDataLocal();
+    if(keepCloudOnError){
+      setConnStatus('云同步重试中','#f59e0b');
+      if(!silent) showToast('同步失败，稍后会自动重试');
+    }else{
+      showToast('数据加载失败，已切换本地模式');
+      useCloud=false;
+      setConnStatus('本地模式','#f59e0b');
+      loadDataLocal();
+    }
   }finally{
-    setLoading(false);
+    if(!silent) setLoading(false);
   }
 }
 
 /* ========== 种子数据 ========== */
 async function seedIfEmpty(){
+  return;
   if(!useCloud) return;
   try{
     const {data}=await supabaseClient.from('tasks').select('id').limit(1);
@@ -744,6 +754,21 @@ async function seedIfEmpty(){
   }catch(err){ console.error('Seed error:',err); }
 }
 
+function startCloudAutoSync(){
+  if(syncTimer) clearInterval(syncTimer);
+  syncTimer=setInterval(async()=>{
+    if(!useCloud||modalCtx||state.loading) return;
+    await loadData({silent:true,keepCloudOnError:true});
+    render();
+  },15000);
+}
+
+async function syncWhenVisible(){
+  if(!useCloud||modalCtx||state.loading) return;
+  await loadData({silent:true,keepCloudOnError:true});
+  render();
+}
+
 /* ========== 初始化 ========== */
 async function init(){
   try{
@@ -754,6 +779,7 @@ async function init(){
     setConnStatus('云同步已连接','#10b981');
     await seedIfEmpty();
     await loadData();
+    startCloudAutoSync();
   }catch(err){
     console.error('Supabase 连接失败，回退本地模式:',err);
     useCloud=false;
@@ -762,6 +788,11 @@ async function init(){
   }
   render();
 }
+
+document.addEventListener('visibilitychange',function(){
+  if(!document.hidden) syncWhenVisible();
+});
+window.addEventListener('focus',syncWhenVisible);
 
 /* ========== 导航 ========== */
 function navigate(view,subView,id){
