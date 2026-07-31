@@ -1,0 +1,1578 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="任务工作台">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
+<link rel="apple-touch-icon-precomposed" href="./apple-touch-icon-precomposed.png">
+<link rel="icon" type="image/png" href="./apple-touch-icon.png">
+<title>我的任务工作台</title>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<style>
+/* ===== 变量与重置 ===== */
+:root{
+  --sidebar-bg:#fff3f8;
+  --sidebar-bg2:#ffe2ee;
+  --primary:#f28bb5;
+  --primary-hover:#e86f9f;
+  --primary-light:#ffe5ef;
+  --bg:#fff7fb;
+  --card:#ffffff;
+  --text:#6d3a4f;
+  --text-secondary:#a66d82;
+  --border:#ffd3e1;
+  --success:#70c6a6;
+  --success-light:#e4f8ef;
+  --danger:#ef6f8f;
+  --danger-light:#ffe2ea;
+  --warning:#f5b75f;
+  --warning-light:#fff1d5;
+  --blue:#84a9f4;
+  --blue-light:#e7efff;
+  --radius:22px;
+  --radius-sm:16px;
+  --shadow:0 6px 18px rgba(242,139,181,.14);
+  --shadow-lg:0 14px 34px rgba(242,139,181,.22);
+  --sidebar-w:260px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei','Helvetica Neue',sans-serif;font-size:14px;color:var(--text);background:radial-gradient(circle at 20% 10%,#ffe4ef 0,#fff7fb 26%,#f7fff8 62%,#fff7fb 100%)}
+button{font-family:inherit;cursor:pointer;border:none;outline:none}
+input,select,textarea{font-family:inherit;font-size:14px;outline:none}
+a{text-decoration:none;color:inherit}
+
+/* ===== 布局 ===== */
+.app{display:flex;height:100vh;overflow:hidden}
+
+/* ===== 侧边栏 ===== */
+.sidebar{
+  flex-shrink:0;width:var(--sidebar-w);
+  background:linear-gradient(180deg,var(--sidebar-bg) 0%,var(--sidebar-bg2) 100%);
+  display:flex;flex-direction:column;
+  height:100vh;overflow-y:auto;
+  border-right:1px solid rgba(242,139,181,.28);
+}
+.sidebar-logo{padding:28px 24px 20px}
+.sidebar-logo h1{color:#d85d92;font-size:18px;font-weight:800;display:flex;align-items:center;gap:8px}
+.sidebar-logo p{color:#b7798e;font-size:12px;margin-top:4px}
+.sidebar-nav{flex:1;padding:8px 12px}
+.menu-item{
+  display:flex;align-items:center;gap:12px;
+  padding:12px 16px;border-radius:var(--radius-sm);
+  color:#9d6078;font-size:14px;font-weight:700;
+  cursor:pointer;transition:all .2s;
+  margin-bottom:4px;position:relative;
+}
+.menu-item:hover{background:rgba(255,255,255,.7);color:#d85d92}
+.menu-item.active{background:#fff;color:#d85d92;box-shadow:var(--shadow)}
+.menu-item.active::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:20px;background:var(--primary);border-radius:0 3px 3px 0}
+.menu-item .icon{font-size:18px;width:24px;text-align:center}
+.menu-item .badge{
+  margin-left:auto;background:var(--primary);color:#fff;
+  font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;min-width:20px;text-align:center;
+}
+.menu-item .badge.income{background:var(--success)}
+.sidebar-footer{padding:16px 24px;border-top:1px dashed rgba(242,139,181,.35);color:#9d6078;font-size:12px}
+
+/* ===== 主内容区 ===== */
+.main{flex:1;min-width:0;height:100vh;overflow-y:auto;padding:32px 40px}
+.main-inner{width:100%;max-width:1100px;margin:0 auto}
+.view{animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ===== 页面头部 ===== */
+.page-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;flex-wrap:wrap;gap:16px}
+.page-head h1{font-size:24px;font-weight:700}
+.page-head .subtitle{color:var(--text-secondary);font-size:14px;margin-top:4px}
+
+/* ===== 今日计划头部 ===== */
+.today-hero{
+  background:linear-gradient(135deg,#ffd7e7 0%,#fff1f7 55%,#e9fff5 100%);
+  border-radius:var(--radius);padding:28px 32px;color:#fff;margin-bottom:24px;
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;
+  color:#bf4f80;border:1px solid rgba(255,255,255,.85);position:relative;overflow:hidden;
+}
+.today-hero::after{content:'♡';position:absolute;right:24px;bottom:-8px;font-size:78px;color:rgba(242,139,181,.18);font-weight:900}
+.today-hero h1{font-size:26px;font-weight:700}
+.today-hero .date{opacity:.85;font-size:14px;margin-top:6px}
+
+/* ===== 按钮 ===== */
+.btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:9px 18px;border-radius:var(--radius-sm);
+  font-size:14px;font-weight:600;transition:all .2s;
+}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-hover);transform:translateY(-1px);box-shadow:0 4px 12px rgba(99,102,241,.3)}
+.btn-secondary{background:#fff;color:var(--text);border:1px solid var(--border)}
+.btn-secondary:hover{background:var(--bg)}
+.btn-danger{background:var(--danger-light);color:var(--danger)}
+.btn-danger:hover{background:var(--danger);color:#fff}
+.btn-sm{padding:6px 14px;font-size:13px}
+.btn-ghost{background:transparent;color:var(--text-secondary);padding:6px 10px;border-radius:6px}
+.btn-ghost:hover{background:var(--bg);color:var(--text)}
+.btn-white{background:#fff;color:#d85d92;backdrop-filter:blur(4px);box-shadow:var(--shadow)}
+.btn-white:hover{background:#fff6fa}
+
+/* ===== 统计卡片 ===== */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:24px}
+.stat-card{
+  background:var(--card);border-radius:var(--radius);padding:20px;
+  box-shadow:var(--shadow);display:flex;align-items:center;gap:14px;
+}
+.stat-card .stat-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.stat-card .stat-info .stat-val{font-size:22px;font-weight:700;line-height:1.2}
+.stat-card .stat-info .stat-label{font-size:12px;color:var(--text-secondary);margin-top:2px}
+.bg-blue{background:var(--blue-light);color:var(--blue)}
+.bg-green{background:var(--success-light);color:var(--success)}
+.bg-orange{background:var(--warning-light);color:var(--warning)}
+.bg-red{background:var(--danger-light);color:var(--danger)}
+
+/* ===== 筛选条 ===== */
+.filter-bar{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.filter-btn{
+  padding:6px 16px;border-radius:20px;font-size:13px;font-weight:500;
+  background:#fff;border:1px solid var(--border);color:var(--text-secondary);transition:all .2s;
+}
+.filter-btn:hover{border-color:var(--primary);color:var(--primary)}
+.filter-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+
+/* ===== 任务列表 ===== */
+.task-list{display:flex;flex-direction:column;gap:8px}
+.task-item{
+  display:flex;align-items:center;gap:14px;
+  background:var(--card);border-radius:var(--radius-sm);padding:14px 18px;
+  box-shadow:var(--shadow);transition:all .2s;border-left:3px solid transparent;
+}
+.task-item:hover{box-shadow:var(--shadow-lg);transform:translateX(2px)}
+.task-item.overdue{border-left-color:var(--danger)}
+.task-item.today-task{border-left-color:var(--primary)}
+.task-item.upcoming{border-left-color:var(--warning)}
+.task-item.completed{opacity:.55}
+.task-item.completed .task-title{text-decoration:line-through;color:var(--text-secondary)}
+.task-date-card{min-width:92px;text-align:center;background:#fff5fa;border:1px solid var(--border);border-radius:18px;padding:10px 8px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.75)}
+.task-date-main{font-size:18px;font-weight:900;color:#d85d92;line-height:1.2}
+.task-date-sub{font-size:12px;color:#9d6078;margin-top:3px;font-weight:700}
+.task-work-line{font-size:18px;font-weight:900;color:#6d3a4f;line-height:1.35;word-break:break-word}
+.task-time{display:inline-flex;align-items:center;gap:4px;color:#d85d92;font-weight:900;margin-right:4px}
+.task-content{font-weight:900}
+
+.task-check{
+  width:22px;height:22px;border:2px solid var(--border);border-radius:6px;
+  cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  transition:all .2s;background:#fff;
+}
+.task-check:hover{border-color:var(--success)}
+.task-item.completed .task-check{background:var(--success);border-color:var(--success);color:#fff}
+.task-check svg{width:14px;height:14px;opacity:0;transition:opacity .2s}
+.task-item.completed .task-check svg{opacity:1}
+
+.task-body{flex:1;min-width:0}
+.task-title{font-size:14px;font-weight:600;word-break:break-word}
+.task-meta{display:flex;align-items:center;gap:10px;margin-top:4px;flex-wrap:wrap}
+.task-deadline{font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:4px}
+.task-deadline.overdue-text{color:var(--danger);font-weight:600}
+.task-deadline.today-text{color:var(--primary);font-weight:600}
+
+.badge{display:inline-flex;align-items:center;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600}
+.badge-blue{background:var(--blue-light);color:var(--blue)}
+.badge-green{background:var(--success-light);color:var(--success)}
+.badge-orange{background:var(--warning-light);color:var(--warning)}
+
+.task-actions{display:flex;gap:4px;opacity:0;transition:opacity .2s}
+.task-item:hover .task-actions{opacity:1}
+.icon-btn{
+  width:30px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+  background:transparent;color:var(--text-secondary);transition:all .2s;font-size:14px;
+}
+.icon-btn:hover{background:var(--bg);color:var(--text)}
+.icon-btn.danger:hover{background:var(--danger-light);color:var(--danger)}
+
+/* ===== 卡片网格 ===== */
+.section{margin-bottom:32px}
+.section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.section-head h2{font-size:17px;font-weight:700}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+
+.file-card,.course-card,.folder-card,.income-card{
+  background:var(--card);border-radius:var(--radius);padding:18px;
+  box-shadow:var(--shadow);transition:all .2s;cursor:pointer;position:relative;
+  display:flex;flex-direction:column;gap:10px;
+}
+.file-card:hover,.folder-card:hover,.income-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px)}
+.course-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px)}
+.card-top{display:flex;align-items:flex-start;gap:12px}
+.card-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.card-icon.bg-indigo{background:var(--primary-light);color:var(--primary)}
+.card-icon.bg-teal{background:#ccfbf1;color:#0d9488}
+.card-icon.bg-pink{background:#fce7f3;color:#db2777}
+.card-icon.bg-amber{background:var(--warning-light);color:var(--warning)}
+.card-name{font-size:14px;font-weight:600;word-break:break-word}
+.card-desc{font-size:12px;color:var(--text-secondary);margin-top:3px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card-footer{display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding-top:8px}
+.card-meta{font-size:12px;color:var(--text-secondary)}
+.card-actions{display:flex;gap:4px}
+.course-link-icon{color:var(--primary);font-size:14px}
+
+/* ===== 文件夹卡片 ===== */
+.folder-card .folder-count{font-size:12px;color:var(--text-secondary);background:var(--bg);padding:2px 10px;border-radius:10px}
+
+/* ===== 详情页 ===== */
+.btn-back{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 14px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;
+  background:#fff;border:1px solid var(--border);color:var(--text-secondary);margin-bottom:16px;transition:all .2s;
+}
+.btn-back:hover{border-color:var(--primary);color:var(--primary)}
+.detail-head{background:var(--card);border-radius:var(--radius);padding:24px 28px;box-shadow:var(--shadow);margin-bottom:24px}
+.detail-head h1{font-size:22px;font-weight:700;display:flex;align-items:center;gap:10px}
+.detail-head .tags{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+
+/* ===== 收入 ===== */
+.income-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:24px}
+.income-chart-box{background:var(--card);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:24px}
+.income-chart-box h3{font-size:15px;font-weight:600;margin-bottom:16px}
+.chart-bars{display:flex;align-items:flex-end;gap:12px;height:160px;padding-bottom:28px;position:relative}
+.chart-bar{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;position:relative;cursor:pointer}
+.chart-bar-fill{width:100%;max-width:40px;background:linear-gradient(180deg,var(--primary),#818cf8);border-radius:6px 6px 0 0;transition:all .3s;min-height:4px}
+.chart-bar:hover .chart-bar-fill{background:linear-gradient(180deg,var(--primary-hover),var(--primary))}
+.chart-bar-label{position:absolute;bottom:-22px;font-size:11px;color:var(--text-secondary)}
+.chart-bar-val{position:absolute;top:-20px;font-size:11px;font-weight:600;color:var(--primary);opacity:0;transition:opacity .2s}
+.chart-bar:hover .chart-bar-val{opacity:1}
+
+.table-wrap{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;padding:14px 18px;font-size:13px;font-weight:600;color:var(--text-secondary);background:var(--bg);border-bottom:1px solid var(--border)}
+td{padding:14px 18px;font-size:14px;border-bottom:1px solid var(--border)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafbfc}
+.amount{font-weight:700;color:var(--success)}
+.balance-card{background:linear-gradient(135deg,#7b3f72 0%,#4b2f5d 100%);border-radius:28px;padding:26px 28px;color:#fff;box-shadow:0 14px 32px rgba(94,52,105,.26);margin-bottom:18px;position:relative;overflow:hidden}
+.balance-card::after{content:'';position:absolute;right:-28px;top:-24px;width:120px;height:120px;background:rgba(255,255,255,.08);border-radius:50%}
+.balance-label{font-size:14px;opacity:.85;margin-bottom:8px}
+.balance-val{font-size:42px;font-weight:900;line-height:1}
+.balance-row{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:24px}
+.balance-mini-label{font-size:13px;opacity:.76}
+.balance-mini-val{font-size:18px;font-weight:900;margin-top:4px}
+.budget-card{background:#fff;border:1px solid var(--border);border-radius:22px;padding:18px;box-shadow:var(--shadow);margin-bottom:18px}
+.budget-head{display:flex;justify-content:space-between;align-items:center;font-weight:900;margin-bottom:12px}
+.budget-unset{color:#60b783;font-size:13px}
+.budget-bar{height:8px;background:#ffe3ed;border-radius:999px;overflow:hidden;margin-bottom:8px}
+.budget-used{height:100%;width:0;background:linear-gradient(90deg,#f28bb5,#70c6a6);border-radius:999px}
+.money-actions{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px}
+.money-action{border-radius:24px;padding:18px;font-size:18px;font-weight:900;text-align:center;box-shadow:var(--shadow)}
+.money-action.expense{background:#ffd1d5;color:#d85d75}
+.money-action.income{background:#d8f8df;color:#489b68}
+.quick-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+.quick-item{background:#fff;border:1px solid var(--border);border-radius:20px;padding:14px 8px;text-align:center;box-shadow:var(--shadow);cursor:pointer;transition:all .2s}
+.quick-item:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+.quick-icon{width:46px;height:46px;margin:0 auto 8px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;background:#fff1f7}
+.quick-name{font-size:13px;font-weight:800;color:#8f4d67}
+
+/* ===== Kitty 风装饰与推荐卡片 ===== */
+.kitty-chip{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--border);color:#d85d92;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:700;box-shadow:var(--shadow)}
+.kitty-icon{display:inline-flex;width:28px;height:28px;align-items:center;justify-content:center;background:#fff;border:1px solid var(--border);border-radius:50%;box-shadow:var(--shadow);font-size:15px}
+.recommend-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+.recommend-card{background:linear-gradient(180deg,#fff,#fff7fb);border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:10px;transition:all .2s}
+.recommend-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+.recommend-type{display:inline-flex;width:max-content;align-items:center;gap:5px;background:var(--primary-light);color:#d85d92;border-radius:999px;padding:4px 10px;font-size:12px;font-weight:700}
+.recommend-title{font-weight:800;line-height:1.45}
+.recommend-desc{font-size:12px;color:var(--text-secondary);line-height:1.6}
+.recommend-link{margin-top:auto;color:#d85d92;font-weight:800;font-size:13px}
+.recommend-actions{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:auto}
+.fav-btn{background:#fff;border:1px solid var(--border);color:#d85d92;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:800;cursor:pointer;transition:all .2s;white-space:nowrap}
+.fav-btn:hover{background:#fff0f6;border-color:var(--primary)}
+
+/* ===== 日历 ===== */
+.calendar-box{width:100%;max-width:100%;overflow:hidden;background:rgba(255,255,255,.88);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);margin-top:24px}
+.calendar-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap}
+.calendar-head h3{font-size:16px;font-weight:800;display:flex;align-items:center;gap:8px}
+.calendar-month-label{text-align:center;font-size:13px;font-weight:700;color:#d85d92;margin-bottom:12px}
+.cal-nav{display:flex;gap:6px;align-items:center}
+.cal-nav-btn{background:#fff;border:1px solid #ffe0eb;color:#d85d92;border-radius:999px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;white-space:nowrap}
+.cal-nav-btn:hover{background:#fff0f6;border-color:var(--primary)}
+.cal-nav-btn.cur{background:var(--primary);color:#fff;border-color:var(--primary)}
+.calendar-grid{width:100%;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+.calendar-week{font-size:12px;text-align:center;color:#b7798e;font-weight:800;padding:4px 0}
+.calendar-day{min-width:0;overflow:hidden;min-height:78px;background:#fff;border:1px solid #ffe0eb;border-radius:16px;padding:8px;display:flex;flex-direction:column;gap:5px;cursor:pointer;transition:all .2s}
+.calendar-day:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+.calendar-day.muted{opacity:.35;cursor:default}
+.calendar-day.today{border-color:var(--primary);box-shadow:0 0 0 3px rgba(242,139,181,.12)}
+.calendar-date{font-weight:800;color:#8f4d67}
+.calendar-dot{max-width:100%;font-size:11px;line-height:1.35;border-radius:999px;padding:2px 7px;background:#fff0f6;color:#d85d92;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.calendar-dot.money{background:#e4f8ef;color:#3a9f79}
+.calendar-more{font-size:11px;color:#b7798e}
+
+/* ===== 上传文件 ===== */
+.upload-note{font-size:12px;color:var(--text-secondary);line-height:1.6;background:#fff7fb;border:1px dashed var(--border);border-radius:14px;padding:10px 12px;margin-bottom:14px}
+.file-meta{font-size:12px;color:var(--text-secondary);line-height:1.5}
+.file-open{display:inline-flex;align-items:center;gap:6px;color:#d85d92;font-weight:800}
+
+/* ===== 空状态 ===== */
+.empty{text-align:center;padding:48px 20px;color:var(--text-secondary)}
+.empty .empty-icon{font-size:48px;margin-bottom:12px}
+.empty .empty-text{font-size:14px}
+
+/* ===== 弹窗 ===== */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(15,23,42,.5);backdrop-filter:blur(2px);
+  display:none;align-items:center;justify-content:center;z-index:1000;padding:20px;
+}
+.modal-overlay.active{display:flex;animation:fadeIn .2s ease}
+.modal{
+  background:#fff;border-radius:16px;width:100%;max-width:520px;max-height:90vh;
+  overflow-y:auto;box-shadow:var(--shadow-lg);animation:modalIn .25s ease;
+}
+@keyframes modalIn{from{transform:scale(.95) translateY(10px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+.modal-head{display:flex;justify-content:space-between;align-items:center;padding:20px 24px;border-bottom:1px solid var(--border)}
+.modal-head h3{font-size:17px;font-weight:700}
+.modal-close{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--text-secondary);transition:all .2s}
+.modal-close:hover{background:var(--bg);color:var(--text)}
+.modal-body{padding:24px}
+.modal-foot{display:flex;justify-content:flex-end;gap:10px;padding:16px 24px;border-top:1px solid var(--border)}
+
+/* ===== 表单 ===== */
+.form-group{margin-bottom:18px}
+.form-group label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:var(--text)}
+.form-group input,.form-group select,.form-group textarea{
+  width:100%;padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);
+  font-size:14px;transition:all .2s;background:#fff;
+}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(99,102,241,.12)}
+.form-group textarea{resize:vertical;line-height:1.6}
+.form-group select{cursor:pointer}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+/* ===== 查看内容 ===== */
+.view-content{padding:4px 0;font-size:14px;line-height:1.8;color:var(--text);white-space:pre-wrap;word-break:break-word;min-height:60px}
+.view-meta{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+
+/* ===== Toast ===== */
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--sidebar-bg);color:#fff;padding:12px 24px;border-radius:var(--radius-sm);font-size:14px;box-shadow:var(--shadow-lg);transition:transform .3s ease;z-index:2000;pointer-events:none}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* ===== Loading ===== */
+.loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,.85);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:3000;flex-direction:column;gap:16px}
+.loading-overlay.active{display:flex}
+.loading-spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{color:var(--text-secondary);font-size:14px}
+
+/* ===== 响应式 ===== */
+@media(max-width:768px){
+  .app{width:100vw;overflow:hidden}
+  .sidebar{width:60px}
+  .sidebar-logo h1,.sidebar-logo p,.menu-item .label,.sidebar-footer{display:none}
+  .menu-item{justify-content:center;padding:12px}
+  .menu-item .badge{position:absolute;top:2px;right:2px;font-size:9px;padding:1px 5px}
+  .main{width:calc(100vw - 60px);min-width:0;padding:16px 10px;overflow-x:hidden}
+  .main-inner{width:100%;min-width:0}
+  .form-row{grid-template-columns:1fr}
+  .today-hero{padding:20px}
+  .today-hero h1{font-size:20px}
+  .task-item{align-items:flex-start;padding:12px;gap:10px}
+  .task-date-card{min-width:68px;padding:8px 5px;border-radius:14px}
+  .task-date-main{font-size:14px}
+  .task-date-sub{font-size:10px}
+  .task-work-line{font-size:15px}
+  .task-time{display:block;margin-bottom:2px}
+  .quick-grid{grid-template-columns:repeat(4,1fr);gap:8px}
+  .quick-item{padding:10px 4px;border-radius:16px}
+  .quick-icon{width:36px;height:36px;font-size:20px}
+  .balance-val{font-size:34px}
+  .money-action{font-size:16px;padding:15px 10px}
+  .calendar-box{padding:10px;margin-top:16px;border-radius:18px}
+  .calendar-head{align-items:flex-start;flex-direction:column;gap:8px;margin-bottom:10px}
+  .calendar-head h3{font-size:15px}
+  .calendar-grid{gap:3px}
+  .calendar-week{font-size:10px;padding:2px 0}
+  .calendar-day{min-height:50px;border-radius:10px;padding:4px;gap:2px}
+  .calendar-date{font-size:12px}
+  .calendar-dot{font-size:9px;line-height:1.2;padding:1px 4px;border-radius:8px}
+  .calendar-more{font-size:9px}
+  .kitty-chip{font-size:11px;padding:5px 9px}
+}
+@media(max-width:420px){
+  .main{padding:14px 8px}
+  .calendar-box{padding:8px}
+  .calendar-grid{gap:2px}
+  .calendar-day{min-height:44px;padding:3px;border-radius:9px}
+  .calendar-date{font-size:11px}
+  .calendar-dot{font-size:8px;padding:1px 3px}
+  .quick-grid{gap:6px}
+  .quick-name{font-size:11px}
+  .task-actions{opacity:1}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- 侧边栏 -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <h1>✦ 我的工作台</h1>
+      <p>任务管理 · 高效每一天</p>
+    </div>
+    <nav class="sidebar-nav" id="sidebarNav">
+      <div class="menu-item active" data-action="navigate" data-view="today">
+        <span class="icon">📅</span><span class="label">今日计划</span>
+        <span class="badge" id="badge-today">0</span>
+      </div>
+      <div class="menu-item" data-action="navigate" data-view="training">
+        <span class="icon">📚</span><span class="label">培训</span>
+      </div>
+      <div class="menu-item" data-action="navigate" data-view="students">
+        <span class="icon">🎓</span><span class="label">学生</span>
+        <span class="badge" id="badge-students">0</span>
+      </div>
+      <div class="menu-item" data-action="navigate" data-view="optimization">
+        <span class="icon">🎯</span><span class="label">优化</span>
+      </div>
+      <div class="menu-item" data-action="navigate" data-view="income">
+        <span class="icon">💰</span><span class="label">收入记录</span>
+        <span class="badge income" id="badge-income">0</span>
+      </div>
+      <div class="menu-item" data-action="navigate" data-view="expenses">
+        <span class="icon">🧾</span><span class="label">支出</span>
+        <span class="badge income" id="badge-expenses">0</span>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <p id="connStatus">连接中...</p>
+    </div>
+  </aside>
+
+  <!-- 主内容 -->
+  <main class="main">
+    <div class="main-inner">
+      <div id="viewContainer"></div>
+    </div>
+  </main>
+</div>
+
+<!-- 弹窗 -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="modalBox"></div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Loading -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">同步数据中...</div>
+</div>
+
+<script>
+/* ========== Supabase 配置 ========== */
+const SUPABASE_URL = 'https://pxeuuxdqayzffzbymdrq.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_KlW5G6ePGX7S1K1rLBt3kg_W-YsG7sm';
+let supabaseClient = null;
+let useCloud = false;
+
+/* ========== 常量 ========== */
+const STORAGE_KEY = 'task_workbench_v1';
+const STUDENT_FILE_BUCKET = 'student-files';
+const WORKBENCH_FILE_BUCKET = 'workbench-files';
+const CATEGORY_COLORS = {'正职工作':'badge-blue','副业工作':'badge-green','面试准备':'badge-orange'};
+const CATEGORY_ICONS = {'正职工作':'💼','副业工作':'📖','面试准备':'🎯'};
+const TRAINING_RECOMMENDS = [
+  {type:'视频',title:'企业培训体系搭建：从需求分析到效果评估',desc:'适合培训主管系统补齐培训项目设计、执行和复盘能力。',url:'https://search.bilibili.com/all?keyword=%E4%BC%81%E4%B8%9A%E5%9F%B9%E8%AE%AD%E4%BD%93%E7%B3%BB%E6%90%AD%E5%BB%BA%20%E9%9C%80%E6%B1%82%E5%88%86%E6%9E%90%20%E6%95%88%E6%9E%9C%E8%AF%84%E4%BC%B0'},
+  {type:'视频',title:'TTT 内训师表达与控场技巧',desc:'优先提升授课表达、课堂互动、控场和课程呈现。',url:'https://search.bilibili.com/all?keyword=TTT%20%E5%86%85%E8%AE%AD%E5%B8%88%20%E6%8E%A7%E5%9C%BA%20%E8%AF%BE%E7%A8%8B%E8%AE%BE%E8%AE%A1'},
+  {type:'视频',title:'柯氏四级培训评估实战',desc:'帮助你把培训满意度、学习效果、行为改变和业务结果串起来。',url:'https://search.bilibili.com/all?keyword=%E6%9F%AF%E6%B0%8F%E5%9B%9B%E7%BA%A7%20%E5%9F%B9%E8%AE%AD%E8%AF%84%E4%BC%B0'},
+  {type:'视频',title:'课程设计与微课开发',desc:'适合制作内部课程、课件、讲师手册和学习路径。',url:'https://search.bilibili.com/all?keyword=%E8%AF%BE%E7%A8%8B%E8%AE%BE%E8%AE%A1%20%E5%BE%AE%E8%AF%BE%E5%BC%80%E5%8F%91%20%E4%BC%81%E4%B8%9A%E5%9F%B9%E8%AE%AD'}
+];
+const STUDENT_RECOMMENDS = [
+  {type:'视频',title:'海外商科 Essay / Case Study 写作结构',desc:'适合辅导海外本科和研究生商科作业，覆盖案例分析、论证结构和引用表达。',url:'https://search.bilibili.com/all?keyword=%E6%B5%B7%E5%A4%96%E5%95%86%E7%A7%91%20essay%20case%20study%20%E5%86%99%E4%BD%9C'},
+  {type:'视频',title:'Business Analytics 商科数据分析入门',desc:'适合管理、市场、金融方向学生补 Excel、SQL、Python 和数据可视化基础。',url:'https://www.youtube.com/results?search_query=business+analytics+for+beginners+course'},
+  {type:'课程',title:'Coursera 商科与管理精选课程',desc:'可用于给不同国家商科学生推荐管理、市场、金融、战略相关课程。',url:'https://www.coursera.org/search?query=business%20management'},
+  {type:'课程',title:'edX Business & Management 课程',desc:'适合研究生提升商业分析、领导力、战略和管理学术表达。',url:'https://www.edx.org/learn/business-administration'},
+  {type:'公众号',title:'留学生商科论文与案例分析选题',desc:'用于每天找商科论文、case study、presentation 的素材和选题灵感。',url:'https://weixin.sogou.com/weixin?type=2&query=%E7%95%99%E5%AD%A6%E7%94%9F%20%E5%95%86%E7%A7%91%20%E8%AE%BA%E6%96%87%20case%20study'},
+  {type:'AI工具',title:'Perplexity：商科资料快速检索',desc:'适合找最新商业案例、行业报告、公司资料和可引用来源。',url:'https://www.perplexity.ai/'},
+  {type:'AI工具',title:'Gamma：学生 Presentation 快速搭建',desc:'适合辅导商科学生做英文展示、汇报框架和视觉化表达。',url:'https://gamma.app/'},
+  {type:'AI工具',title:'Consensus：学术论文证据检索',desc:'适合研究生找论文证据、文献结论和研究支持。',url:'https://consensus.app/'}
+];
+const INTERVIEW_RECOMMENDS = [
+  {type:'视频',title:'结构化面试 STAR 法则高分表达',desc:'适合准备行为面试，把经历讲得清楚、有结果、有亮点。',url:'https://search.bilibili.com/all?keyword=STAR%E6%B3%95%E5%88%99%20%E7%BB%93%E6%9E%84%E5%8C%96%E9%9D%A2%E8%AF%95%20%E9%AB%98%E5%88%86%E5%9B%9E%E7%AD%94'},
+  {type:'视频',title:'培训经理/培训主管面试问题精讲',desc:'围绕培训体系、项目管理、评估指标、跨部门协作来准备。',url:'https://search.bilibili.com/all?keyword=%E5%9F%B9%E8%AE%AD%E7%BB%8F%E7%90%86%20%E5%9F%B9%E8%AE%AD%E4%B8%BB%E7%AE%A1%20%E9%9D%A2%E8%AF%95'},
+  {type:'文章',title:'面试复盘清单：JD 拆解、作品集、追问准备',desc:'每次面试前后都可以按清单复盘，逐步提高命中率。',url:'https://www.zhihu.com/search?type=content&q=%E9%9D%A2%E8%AF%95%20JD%E6%8B%86%E8%A7%A3%20STAR%20%E5%A4%8D%E7%9B%98'},
+  {type:'视频',title:'压力面试与追问应对技巧',desc:'训练“先结论、再证据、再复盘”的稳定表达方式。',url:'https://search.bilibili.com/all?keyword=%E5%8E%8B%E5%8A%9B%E9%9D%A2%E8%AF%95%20%E8%BF%BD%E9%97%AE%20%E5%BA%94%E5%AF%B9%E6%8A%80%E5%B7%A7'}
+];
+
+/* ========== 示例数据 ========== */
+const SAMPLE_DATA = {
+  tasks: [
+    {title:'完成新员工培训计划制定',category:'正职工作',deadline:'2026-07-29',completed:false},
+    {title:'准备王小明的高二数学辅导教案',category:'副业工作',deadline:'2026-07-30',completed:false},
+    {title:'复习数据结构与算法（链表+栈队列）',category:'面试准备',deadline:'2026-07-31',completed:false},
+    {title:'整理上月培训反馈数据并汇报',category:'正职工作',deadline:'2026-07-30',completed:true},
+    {title:'准备李思思初三英语阅读专题辅导',category:'副业工作',deadline:'2026-07-30',completed:false},
+  ],
+  trainingFiles: [
+    {title:'2026年Q3培训计划',description:'包含培训目标、课程安排、预算及时间节点',content:'一、培训目标\n提升全员岗位胜任力，新员工90天内通过考核。\n\n二、培训课程安排\n1. 新员工入职培训（第1周）\n2. 岗位技能进阶培训（第2-4周）\n3. 管理能力提升（第5-8周）\n\n三、预算\n- 外部讲师费用：3万\n- 内部培训物料：5千\n- 场地与设备：2千'},
+    {title:'培训效果评估模板（柯氏四级）',description:'反应-学习-行为-结果四级评估标准模板',content:'【一级评估：反应】\n培训满意度问卷，满分5分，目标≥4.0\n\n【二级评估：学习】\n课前测试 vs 课后测试，提升率目标≥30%\n\n【三级评估：行为】\n培训后30天/60天/90天行为观察打卡\n\n【四级评估：结果】\n- 业绩指标对比\n- 错误率下降\n- 员工留存率'},
+  ],
+  trainingCourses: [
+    {title:'TTT培训师培训认证课程',url:'https://www.ke.qq.com/course/ttt',description:'系统提升培训授课技巧与课程设计能力'},
+    {title:'企业培训体系搭建实战',url:'https://www.csdn.net/training-system',description:'从0到1搭建企业培训体系的全流程指南'},
+    {title:'培训需求分析与效果评估',url:'https://www.zhihu.com/education/need-analysis',description:'精准识别培训需求，科学评估培训效果'},
+  ],
+  students: [
+    {name:'王小明',grade:'高二',subject:'数学'},
+    {name:'李思思',grade:'初三',subject:'英语'},
+  ],
+  positions: [
+    {name:'高级培训经理',company:'某互联网公司'},
+    {name:'产品经理',company:''},
+  ],
+  income: [
+    {date:'2026-07-25',time:'19:00',amount:500,note:'王小明数学辅导'},
+    {date:'2026-07-27',time:'19:00',amount:300,note:'李思思英语辅导'},
+    {date:'2026-07-29',time:'15:00',amount:500,note:'王小明数学辅导'},
+    {date:'2026-07-30',time:'19:00',amount:300,note:'李思思英语辅导'},
+  ]
+};
+
+/* ========== 状态 ========== */
+let state = { view:'today', subView:null, selectedId:null, filter:'all', data:null, loading:true, calOffsetTask:0, calOffsetIncome:0 };
+let modalCtx = null;
+
+/* ========== 工具函数 ========== */
+function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function nowTimeStr(){ const d=new Date(); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+function escapeHtml(s){ if(!s)return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
+function formatDate(s){ if(!s)return ''; const d=new Date(s); return (d.getMonth()+1)+'月'+d.getDate()+'日'; }
+function formatDateFull(s){ const d=s?new Date(s):new Date(); const wk=['日','一','二','三','四','五','六']; return d.getFullYear()+'年'+(d.getMonth()+1)+'月'+d.getDate()+'日 星期'+wk[d.getDay()]; }
+function formatMoney(n){ return '¥'+parseFloat(n||0).toLocaleString('zh-CN'); }
+function relativeDayLabel(s){
+  if(!s)return '';
+  const d=new Date(s), today=new Date(); d.setHours(0,0,0,0); today.setHours(0,0,0,0);
+  const diff=Math.round((d-today)/86400000);
+  if(diff===0)return '今天';
+  if(diff===1)return '明天';
+  if(diff===-1)return '昨天';
+  if(diff<0)return '已逾期';
+  return '周'+['日','一','二','三','四','五','六'][d.getDay()];
+}
+function taskDateParts(s){
+  const d=new Date(s);
+  return {main:(d.getMonth()+1)+'月'+d.getDate()+'日',sub:relativeDayLabel(s)};
+}
+function greeting(){ const h=new Date().getHours(); if(h<6)return '夜深了'; if(h<11)return '早上好'; if(h<14)return '中午好'; if(h<18)return '下午好'; if(h<22)return '晚上好'; return '夜深了'; }
+function isOverdue(t){ if(t.completed)return false; const today=new Date(); today.setHours(0,0,0,0); const dl=new Date(t.deadline); dl.setHours(0,0,0,0); return dl<today; }
+function isTodayDeadline(s){ return s===todayStr(); }
+function monthKey(s){ return s?s.substring(0,7):''; }
+function bytesToSize(bytes){ if(!bytes)return ''; const units=['B','KB','MB','GB']; let n=Number(bytes),i=0; while(n>=1024&&i<units.length-1){n/=1024;i++;} return (i?n.toFixed(1):n.toFixed(0))+units[i]; }
+function dailyItems(items){
+  const d=new Date(); const seed=d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate();
+  return items.map((x,i)=>items[(i+seed)%items.length]);
+}
+function renderRecommendations(items,source){
+  return '<div class="recommend-grid">'+items.map((r,idx)=>'<div class="recommend-card">'
+    +'<span class="recommend-type">'+(r.type==='视频'?'🎬':'📖')+' '+escapeHtml(r.type)+'</span>'
+    +'<div class="recommend-title">'+escapeHtml(r.title)+'</div>'
+    +'<div class="recommend-desc">'+escapeHtml(r.desc)+'</div>'
+    +'<div class="recommend-actions"><a class="recommend-link" href="'+escapeHtml(r.url)+'" target="_blank" rel="noopener">打开推荐 →</a>'
+    +(source?'<button class="fav-btn" data-action="favorite-recommend" data-source="'+source+'" data-index="'+idx+'">♡ 收藏</button>':'')+'</div></div>').join('')+'</div>';
+}
+function getMonthDays(offset){
+  const base=new Date();
+  base.setDate(1);
+  if(offset) base.setMonth(base.getMonth()+offset);
+  const y=base.getFullYear(),m=base.getMonth();
+  const first=new Date(y,m,1),last=new Date(y,m+1,0);
+  const start=new Date(first); start.setDate(1-first.getDay());
+  const days=[];
+  for(let i=0;i<42;i++){
+    const d=new Date(start); d.setDate(start.getDate()+i);
+    const ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    days.push({date:ds,day:d.getDate(),currentMonth:d.getMonth()===m,today:ds===todayStr()});
+  }
+  return {label:y+'年'+(m+1)+'月',days};
+}
+function renderTaskCalendar(){
+  const tasks=state.data?.tasks||[];
+  const off=state.calOffsetTask||0;
+  const month=getMonthDays(off);
+  const weeks=['日','一','二','三','四','五','六'];
+  const btns='<div class="cal-nav">'
+    +'<button class="cal-nav-btn" data-action="cal-task-prev">‹ 上月</button>'
+    +'<button class="cal-nav-btn '+(off===0?'cur':'')+'" data-action="cal-task-reset">本月</button>'
+    +'<button class="cal-nav-btn" data-action="cal-task-next">下月 ›</button></div>';
+  return '<div class="calendar-box"><div class="calendar-head"><h3>🎀 待办日历</h3>'+btns+'</div>'
+    +'<div class="calendar-month-label">'+month.label+'</div>'
+    +'<div class="calendar-grid">'+weeks.map(w=>'<div class="calendar-week">'+w+'</div>').join('')
+    +month.days.map(d=>{
+      const list=tasks.filter(t=>t.deadline===d.date);
+      return '<div class="calendar-day '+(!d.currentMonth?'muted ':'')+(d.today?'today':'')+'" data-action="view-task-date" data-date="'+d.date+'">'
+        +'<div class="calendar-date">'+d.day+'</div>'
+        +list.slice(0,2).map(t=>'<div class="calendar-dot">'+(t.completed?'✓ ':'')+escapeHtml((t.schedule_time?t.schedule_time+' ':'')+t.title)+'</div>').join('')
+        +(list.length>2?'<div class="calendar-more">+'+(list.length-2)+' 项</div>':'')+'</div>';
+    }).join('')+'</div></div>';
+}
+function renderIncomeCalendar(){
+  const income=state.data?.income||[];
+  const off=state.calOffsetIncome||0;
+  const month=getMonthDays(off);
+  const weeks=['日','一','二','三','四','五','六'];
+  const btns='<div class="cal-nav">'
+    +'<button class="cal-nav-btn" data-action="cal-income-prev">‹ 上月</button>'
+    +'<button class="cal-nav-btn '+(off===0?'cur':'')+'" data-action="cal-income-reset">本月</button>'
+    +'<button class="cal-nav-btn" data-action="cal-income-next">下月 ›</button></div>';
+  return '<div class="calendar-box"><div class="calendar-head"><h3>💗 收入日历</h3>'+btns+'</div>'
+    +'<div class="calendar-month-label">'+month.label+'</div>'
+    +'<div class="calendar-grid">'+weeks.map(w=>'<div class="calendar-week">'+w+'</div>').join('')
+    +month.days.map(d=>{
+      const list=income.filter(i=>i.date===d.date);
+      const total=list.reduce((s,i)=>s+parseFloat(i.amount),0);
+      return '<div class="calendar-day '+(!d.currentMonth?'muted ':'')+(d.today?'today':'')+'" data-action="view-income-date" data-date="'+d.date+'">'
+        +'<div class="calendar-date">'+d.day+'</div>'
+        +(total>0?'<div class="calendar-dot money">'+formatMoney(total)+'</div>':'')
+        +(list.length>1?'<div class="calendar-more">'+list.length+' 笔</div>':'')+'</div>';
+    }).join('')+'</div></div>';
+}
+function showToast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t=setTimeout(()=>el.classList.remove('show'),2000);
+}
+function setLoading(show){
+  document.getElementById('loadingOverlay').classList.toggle('active',show);
+}
+function setConnStatus(text,color){
+  const el=document.getElementById('connStatus');
+  el.textContent=text;
+  el.style.color=color||'#64748b';
+}
+
+/* ========== 本地数据回退 ========== */
+function ensureDataShape(){
+  state.data=state.data||{};
+  state.data.tasks=state.data.tasks||[];
+  state.data.training=state.data.training||{files:[],courses:[]};
+  state.data.training.files=state.data.training.files||[];
+  state.data.training.courses=state.data.training.courses||[];
+  state.data.students=state.data.students||[];
+  state.data.positions=state.data.positions||[];
+  state.data.income=state.data.income||[];
+  state.data.expenses=state.data.expenses||[];
+}
+function loadDataLocal(){
+  try{
+    const raw=localStorage.getItem(STORAGE_KEY);
+    if(raw){ state.data=JSON.parse(raw); ensureDataShape(); return; }
+  }catch(e){}
+  state.data={tasks:[],training:{files:[],courses:[]},students:[],positions:[],income:[],expenses:[]};
+}
+function saveDataLocal(){
+  try{ if(!useCloud) localStorage.setItem(STORAGE_KEY,JSON.stringify(state.data)); }catch(e){}
+}
+
+/* ========== Supabase 数据加载 ========== */
+async function loadData(){
+  if(!useCloud){ loadDataLocal(); return; }
+  setLoading(true);
+  try{
+    const [
+      {data:tasks,error:e1},{data:trainingFiles,error:e2},{data:trainingCourses,error:e3},
+      {data:students,error:e4},{data:studentMaterials,error:e5},
+      {data:positions,error:e6},{data:positionItems,error:e7},{data:income,error:e8},{data:expenses,error:e9}
+    ]=await Promise.all([
+      supabaseClient.from('tasks').select('*'),
+      supabaseClient.from('training_files').select('*'),
+      supabaseClient.from('training_courses').select('*'),
+      supabaseClient.from('students').select('*'),
+      supabaseClient.from('student_materials').select('*'),
+      supabaseClient.from('positions').select('*'),
+      supabaseClient.from('position_items').select('*'),
+      supabaseClient.from('income').select('*'),
+      supabaseClient.from('expenses').select('*')
+    ]);
+    const errs=[e1,e2,e3,e4,e5,e6,e7,e8,e9].filter(Boolean);
+    if(errs.length>0){ console.error('Supabase errors:',errs); }
+    state.data={
+      tasks:tasks||[],
+      training:{
+        files:(trainingFiles||[]).map(f=>({id:f.id,title:f.title,description:f.description,content:f.content,file_name:f.file_name,file_path:f.file_path,file_url:f.file_url,mime_type:f.mime_type,file_size:f.file_size})),
+        courses:(trainingCourses||[]).map(c=>({id:c.id,title:c.title,url:c.url,description:c.description}))
+      },
+      students:(students||[]).map(s=>({
+        id:s.id,name:s.name,grade:s.grade,subject:s.subject,
+        materials:(studentMaterials||[]).filter(m=>m.student_id===s.id&&m.type==='materials').map(m=>({id:m.id,title:m.title,content:m.content,file_name:m.file_name,file_path:m.file_path,file_url:m.file_url,mime_type:m.mime_type,file_size:m.file_size})),
+        lectures:(studentMaterials||[]).filter(m=>m.student_id===s.id&&m.type==='lectures').map(m=>({id:m.id,title:m.title,content:m.content,file_name:m.file_name,file_path:m.file_path,file_url:m.file_url,mime_type:m.mime_type,file_size:m.file_size}))
+      })),
+      positions:(positions||[]).map(p=>({
+        id:p.id,name:p.name,company:p.company,
+        jdList:(positionItems||[]).filter(i=>i.position_id===p.id&&i.type==='jdList').map(i=>({id:i.id,title:i.title,content:i.content})),
+        prepNotes:(positionItems||[]).filter(i=>i.position_id===p.id&&i.type==='prepNotes').map(i=>({id:i.id,title:i.title,content:i.content}))
+      })),
+      income:(income||[]).map(i=>({id:i.id,date:i.date,time:i.time,amount:i.amount,hours:i.hours,note:i.note})),
+      expenses:(expenses||[]).map(i=>({id:i.id,date:i.date,time:i.time,amount:i.amount,category:i.category,note:i.note}))
+    };
+  }catch(err){
+    console.error('Load error:',err);
+    showToast('数据加载失败，已切换本地模式');
+    useCloud=false;
+    setConnStatus('本地模式','#f59e0b');
+    loadDataLocal();
+  }finally{
+    setLoading(false);
+  }
+}
+
+/* ========== 种子数据 ========== */
+async function seedIfEmpty(){
+  if(!useCloud) return;
+  try{
+    const {data}=await supabaseClient.from('tasks').select('id').limit(1);
+    if(data&&data.length>0) return;
+    await supabaseClient.from('tasks').insert(SAMPLE_DATA.tasks);
+    await supabaseClient.from('training_files').insert(SAMPLE_DATA.trainingFiles);
+    await supabaseClient.from('training_courses').insert(SAMPLE_DATA.trainingCourses);
+    await supabaseClient.from('students').insert(SAMPLE_DATA.students);
+    await supabaseClient.from('positions').insert(SAMPLE_DATA.positions);
+    await supabaseClient.from('income').insert(SAMPLE_DATA.income);
+  }catch(err){ console.error('Seed error:',err); }
+}
+
+/* ========== 初始化 ========== */
+async function init(){
+  try{
+    supabaseClient=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+    const {error}=await supabaseClient.from('tasks').select('id').limit(1);
+    if(error&&error.code!=='PGRST116'){ throw error; }
+    useCloud=true;
+    setConnStatus('云同步已连接','#10b981');
+    await seedIfEmpty();
+    await loadData();
+  }catch(err){
+    console.error('Supabase 连接失败，回退本地模式:',err);
+    useCloud=false;
+    setConnStatus('本地模式 (云连接失败)','#f59e0b');
+    loadDataLocal();
+  }
+  render();
+}
+
+/* ========== 导航 ========== */
+function navigate(view,subView,id){
+  state.view=view; state.subView=subView||null; state.selectedId=id||null; state.filter='all';
+  render();
+}
+function updateSidebar(){
+  document.querySelectorAll('.menu-item').forEach(el=>{
+    el.classList.toggle('active',el.dataset.view===state.view);
+  });
+  const pending=(state.data?.tasks||[]).filter(t=>!t.completed).length;
+  document.getElementById('badge-today').textContent=pending;
+  document.getElementById('badge-students').textContent=(state.data?.students||[]).length;
+  const monthTotal=(state.data?.income||[]).filter(i=>monthKey(i.date)===monthKey(todayStr())).reduce((s,i)=>s+parseFloat(i.amount),0);
+  document.getElementById('badge-income').textContent=monthTotal>0?formatMoney(monthTotal):'0';
+  const monthExpense=(state.data?.expenses||[]).filter(i=>monthKey(i.date)===monthKey(todayStr())).reduce((s,i)=>s+parseFloat(i.amount),0);
+  document.getElementById('badge-expenses').textContent=monthExpense>0?formatMoney(monthExpense):'0';
+}
+
+/* ========== 主渲染 ========== */
+function render(){
+  if(state.loading&&!state.data){ document.getElementById('viewContainer').innerHTML='<div class="view"><div class="empty"><div class="empty-icon">⏳</div><div class="empty-text">加载中...</div></div></div>'; return; }
+  const c=document.getElementById('viewContainer');
+  let html='';
+  switch(state.view){
+    case 'today': html=renderToday(); break;
+    case 'training': html=renderTraining(); break;
+    case 'students': html=state.subView==='detail'?renderStudentDetail(state.selectedId):renderStudents(); break;
+    case 'optimization': html=state.subView==='detail'?renderPositionDetail(state.selectedId):renderOptimization(); break;
+    case 'income': html=renderIncome(); break;
+    case 'expenses': html=renderExpenses(); break;
+  }
+  c.innerHTML='<div class="view">'+html+'</div>';
+  updateSidebar();
+}
+
+/* ========== 今日计划 ========== */
+function renderToday(){
+  const tasks=state.data?.tasks||[];
+  let filtered=state.filter==='all'?tasks:tasks.filter(t=>t.category===state.filter);
+  filtered=[...filtered].sort((a,b)=>{ if(a.completed!==b.completed)return a.completed?1:-1; return new Date(a.deadline)-new Date(b.deadline); });
+  const todayCount=tasks.filter(t=>isTodayDeadline(t.deadline)&&!t.completed).length;
+  const completedCount=tasks.filter(t=>t.completed).length;
+  const overdueCount=tasks.filter(t=>isOverdue(t)).length;
+  const pendingCount=tasks.filter(t=>!t.completed).length;
+
+  let taskHTML='';
+  if(filtered.length===0){
+    taskHTML='<div class="empty"><div class="empty-icon">📝</div><div class="empty-text">暂无任务，点击右上角添加吧！</div></div>';
+  }else{
+    taskHTML='<div class="task-list">'+filtered.map(t=>{
+      const overdue=isOverdue(t); const todayDl=isTodayDeadline(t.deadline);
+      const cls=t.completed?'completed':overdue?'overdue':todayDl?'today-task':'upcoming';
+      const dateParts=taskDateParts(t.deadline);
+      const catBadge=CATEGORY_COLORS[t.category]||'badge-blue';
+      return '<div class="task-item '+cls+'">'
+        +'<div class="task-check" data-action="toggle-task" data-id="'+t.id+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>'
+        +'<div class="task-date-card"><div class="task-date-main">'+escapeHtml(dateParts.main)+'</div><div class="task-date-sub">'+escapeHtml(dateParts.sub)+'</div></div>'
+        +'<div class="task-body"><div class="task-work-line">'+(t.schedule_time?'<span class="task-time">'+escapeHtml(t.schedule_time)+'</span>':'')+'<span class="task-content">'+escapeHtml(t.title)+'</span></div>'
+        +'<div class="task-meta"><span class="badge '+catBadge+'">'+(CATEGORY_ICONS[t.category]||'')+' '+escapeHtml(t.category)+'</span>'
+        +'<span class="task-deadline '+(overdue?'overdue-text':todayDl?'today-text':'')+'">⏰ '+escapeHtml(dateParts.sub)+' · '+formatDate(t.deadline)+'</span></div></div>'
+        +'<div class="task-actions"><button class="icon-btn" data-action="edit-task" data-id="'+t.id+'" title="编辑">✏️</button>'
+        +'<button class="icon-btn danger" data-action="delete-task" data-id="'+t.id+'" title="删除">🗑</button></div></div>';
+    }).join('')+'</div>';
+  }
+
+  const filterBtns=['all','正职工作','副业工作','面试准备'].map(f=>{
+    const label=f==='all'?'全部':f;
+    return '<button class="filter-btn '+(state.filter===f?'active':'')+'" data-action="filter" data-filter="'+f+'">'+label+'</button>';
+  }).join('');
+
+  return '<div class="today-hero"><div><span class="kitty-chip">🎀 Hello Kitty work mode</span><h1>'+greeting()+'，Lynn👋</h1><div class="date">'+formatDateFull()+'</div></div>'
+    +'<button class="btn btn-white" data-action="add-task">+ 添加任务</button></div>'
+    +'<div class="stats">'
+    +'<div class="stat-card"><div class="stat-icon bg-blue">📋</div><div class="stat-info"><div class="stat-val">'+pendingCount+'</div><div class="stat-label">待完成</div></div></div>'
+    +'<div class="stat-card"><div class="stat-icon bg-green">✅</div><div class="stat-info"><div class="stat-val">'+completedCount+'</div><div class="stat-label">已完成</div></div></div>'
+    +'<div class="stat-card"><div class="stat-icon bg-orange">🔥</div><div class="stat-info"><div class="stat-val">'+todayCount+'</div><div class="stat-label">今日到期</div></div></div>'
+    +'<div class="stat-card"><div class="stat-icon bg-red">⚠️</div><div class="stat-info"><div class="stat-val">'+overdueCount+'</div><div class="stat-label">已逾期</div></div></div>'
+    +'</div><div class="filter-bar">'+filterBtns+'</div>'+taskHTML+renderTaskCalendar();
+}
+
+/* ========== 培训 ========== */
+function renderTraining(){
+  const t=state.data?.training||{files:[],courses:[]};
+  let fileHTML='';
+  if((t.files||[]).length===0){
+    fileHTML='<div class="empty"><div class="empty-icon">📂</div><div class="empty-text">暂无工作文件</div></div>';
+  }else{
+    fileHTML='<div class="card-grid">'+t.files.map(f=>{
+      return '<div class="file-card" data-action="view-file" data-id="'+f.id+'">'
+        +'<div class="card-top"><div class="card-icon bg-indigo">'+(f.file_url?'📎':'📄')+'</div>'
+        +'<div><div class="card-name">'+escapeHtml(f.title)+'</div>'
+        +'<div class="card-desc">'+escapeHtml(f.description||'')+'</div>'
+        +(f.file_name?'<div class="file-meta">'+escapeHtml(f.file_name)+' '+bytesToSize(f.file_size)+'</div>':'')+'</div></div>'
+        +'<div class="card-footer"><span class="card-meta">'+(f.file_url?'点击打开文件':'点击查看')+'</span>'
+        +'<div class="card-actions"><button class="icon-btn danger" data-action="delete-file" data-id="'+f.id+'">🗑</button></div></div></div>';
+    }).join('')+'</div>';
+  }
+  let courseHTML='';
+  if((t.courses||[]).length===0){
+    courseHTML='<div class="empty"><div class="empty-icon">🎓</div><div class="empty-text">暂无课程链接</div></div>';
+  }else{
+    courseHTML='<div class="card-grid">'+t.courses.map(c=>{
+      return '<a class="course-card" href="'+escapeHtml(c.url)+'" target="_blank" rel="noopener">'
+        +'<div class="card-top"><div class="card-icon bg-teal">🎓</div>'
+        +'<div><div class="card-name">'+escapeHtml(c.title)+'</div>'
+        +'<div class="card-desc">'+escapeHtml(c.description||'')+'</div></div></div>'
+        +'<div class="card-footer"><span class="course-link-icon">🔗 打开链接</span>'
+        +'<div class="card-actions"><button class="icon-btn danger" data-action="delete-course" data-id="'+c.id+'" onclick="event.preventDefault();event.stopPropagation()">🗑</button></div></div></a>';
+    }).join('')+'</div>';
+  }
+  return '<div class="page-head"><div><h1><span class="kitty-icon">🎀</span> 培训管理</h1><div class="subtitle">正职工作文件与技能提升课程</div></div></div>'
+    +'<div class="section"><div class="section-head"><h2>📄 工作文件</h2><div><button class="btn btn-sm btn-secondary" data-action="upload-training-file">上传文件</button> <button class="btn btn-sm btn-primary" data-action="add-file">+ 添加文字</button></div></div>'+fileHTML+'</div>'
+    +'<div class="section"><div class="section-head"><h2>🎬 实时精选技能提升视频</h2><span class="kitty-chip">优先视频 · 高质量关键词</span></div>'+renderRecommendations(dailyItems(TRAINING_RECOMMENDS),'training')+'</div>'
+    +'<div class="section"><div class="section-head"><h2>🎓 我的课程收藏</h2><button class="btn btn-sm btn-primary" data-action="add-course">+ 添加课程</button></div>'+courseHTML+'</div>';
+}
+
+/* ========== 学生 ========== */
+function renderStudents(){
+  const students=state.data?.students||[];
+  const t=state.data?.training||{courses:[]};
+  let html='';
+  if(students.length===0){
+    html='<div class="empty"><div class="empty-icon">🎓</div><div class="empty-text">暂无学生，点击右上角添加</div></div>';
+  }else{
+    html='<div class="card-grid">'+students.map(s=>{
+      const totalItems=(s.materials?s.materials.length:0)+(s.lectures?s.lectures.length:0);
+      return '<div class="folder-card" data-action="view-student" data-id="'+s.id+'">'
+        +'<div class="card-top"><div class="card-icon bg-pink">🎒</div>'
+        +'<div><div class="card-name">'+escapeHtml(s.name)+'</div>'
+        +'<div class="card-desc">'+escapeHtml(s.grade||'')+' · '+escapeHtml(s.subject||'')+'</div></div></div>'
+        +'<div class="card-footer"><span class="folder-count">'+totalItems+' 份资料</span>'
+        +'<div class="card-actions"><button class="icon-btn danger" data-action="delete-student" data-id="'+s.id+'">🗑</button></div></div></div>';
+    }).join('')+'</div>';
+  }
+  const courseHTML=(t.courses||[]).length===0
+    ?'<div class="empty"><div class="empty-icon">🎓</div><div class="empty-text">暂无收藏课程，看到好的推荐可以点收藏</div></div>'
+    :'<div class="card-grid">'+t.courses.map(c=>'<a class="course-card" href="'+escapeHtml(c.url)+'" target="_blank" rel="noopener">'
+      +'<div class="card-top"><div class="card-icon bg-teal">⭐</div><div><div class="card-name">'+escapeHtml(c.title)+'</div><div class="card-desc">'+escapeHtml(c.description||'')+'</div></div></div>'
+      +'<div class="card-footer"><span class="course-link-icon">🔗 打开链接</span><div class="card-actions"><button class="icon-btn danger" data-action="delete-course" data-id="'+c.id+'" onclick="event.preventDefault();event.stopPropagation()">🗑</button></div></div></a>').join('')+'</div>';
+  return '<div class="page-head"><div><h1><span class="kitty-icon">📚</span> 学生管理</h1><div class="subtitle">按学生管理课件、讲稿与完整文件</div></div>'
+    +'<button class="btn btn-primary" data-action="add-student">+ 添加学生</button></div>'
+    +'<div class="section"><div class="section-head"><h2>🌍 留学生商科每日推荐</h2><span class="kitty-chip">视频 · 公众号 · AI工具 · 每日轮换</span></div>'+renderRecommendations(dailyItems(STUDENT_RECOMMENDS),'student')+'</div>'
+    +'<div class="section"><div class="section-head"><h2>🎓 我的课程收藏</h2></div>'+courseHTML+'</div>'
+    +'<div class="section"><div class="section-head"><h2>学生资料</h2><span class="kitty-chip">'+students.length+' 位学生</span></div>'+html+'</div>';
+}
+
+function renderStudentDetail(id){
+  const s=(state.data?.students||[]).find(x=>x.id===id);
+  if(!s) return '<div class="empty">学生不存在</div>';
+  const matHTML=(s.materials||[]).length===0
+    ?'<div class="empty"><div class="empty-icon">📖</div><div class="empty-text">暂无课件</div></div>'
+    :'<div class="card-grid">'+s.materials.map(m=>{
+      return '<div class="file-card" data-action="view-material" data-student-id="'+s.id+'" data-type="materials" data-item-id="'+m.id+'">'
+        +'<div class="card-top"><div class="card-icon bg-pink">'+(m.file_url?'📎':'📖')+'</div><div><div class="card-name">'+escapeHtml(m.title)+'</div>'
+        +(m.file_name?'<div class="file-meta">'+escapeHtml(m.file_name)+' '+bytesToSize(m.file_size)+'</div>':'')+'</div></div>'
+        +'<div class="card-footer"><span class="card-meta">'+(m.file_url?'点击打开文件':'点击查看')+'</span>'
+        +'<div class="card-actions"><button class="icon-btn danger" data-action="delete-material" data-student-id="'+s.id+'" data-type="materials" data-item-id="'+m.id+'">🗑</button></div></div></div>';
+    }).join('')+'</div>';
+  const lecHTML=(s.lectures||[]).length===0
+    ?'<div class="empty"><div class="empty-icon">📝</div><div class="empty-text">暂无讲稿</div></div>'
+    :'<div class="card-grid">'+s.lectures.map(l=>{
+      return '<div class="file-card" data-action="view-material" data-student-id="'+s.id+'" data-type="lectures" data-item-id="'+l.id+'">'
+        +'<div class="card-top"><div class="card-icon bg-amber">'+(l.file_url?'📎':'📝')+'</div><div><div class="card-name">'+escapeHtml(l.title)+'</div>'
+        +(l.file_name?'<div class="file-meta">'+escapeHtml(l.file_name)+' '+bytesToSize(l.file_size)+'</div>':'')+'</div></div>'
+        +'<div class="card-footer"><span class="card-meta">'+(l.file_url?'点击打开文件':'点击查看')+'</span>'
+        +'<div class="card-actions"><button class="icon-btn danger" data-action="delete-material" data-student-id="'+s.id+'" data-type="lectures" data-item-id="'+l.id+'">🗑</button></div></div></div>';
+    }).join('')+'</div>';
+  return '<button class="btn-back" data-action="navigate" data-view="students">← 返回学生列表</button>'
+    +'<div class="detail-head"><h1>🎒 '+escapeHtml(s.name)+'</h1>'
+    +'<div class="tags"><span class="badge badge-green">'+escapeHtml(s.grade||'')+'</span>'
+    +'<span class="badge badge-blue">'+escapeHtml(s.subject||'')+'</span></div></div>'
+    +'<div class="section"><div class="section-head"><h2>📖 学校课件</h2><div><button class="btn btn-sm btn-secondary" data-action="upload-materials" data-student-id="'+s.id+'" data-type="materials">上传文件</button> <button class="btn btn-sm btn-primary" data-action="add-material" data-student-id="'+s.id+'" data-type="materials">+ 添加文字</button></div></div>'+matHTML+'</div>'
+    +'<div class="section"><div class="section-head"><h2>📝 我的讲稿</h2><div><button class="btn btn-sm btn-secondary" data-action="upload-materials" data-student-id="'+s.id+'" data-type="lectures">上传文件</button> <button class="btn btn-sm btn-primary" data-action="add-material" data-student-id="'+s.id+'" data-type="lectures">+ 添加文字</button></div></div>'+lecHTML+'</div>';
+}
+
+/* ========== 优化 ========== */
+function renderOptimization(){
+  const positions=state.data?.positions||[];
+  let html='';
+  if(positions.length===0){
+    html='<div class="empty"><div class="empty-icon">🎯</div><div class="empty-text">暂无岗位，点击右上角添加</div></div>';
+  }else{
+    html='<div class="card-grid">'+positions.map(p=>{
+      const totalItems=(p.jdList||[]).length+(p.prepNotes||[]).length;
+      return '<div class="folder-card" data-action="view-position" data-id="'+p.id+'">'
+        +'<div class="card-top"><div class="card-icon bg-indigo">📁</div>'
+        +'<div><div class="card-name">'+escapeHtml(p.name)+'</div>'
+        +'<div class="card-desc">'+(p.company?escapeHtml(p.company):'未指定公司')+'</div></div></div>'
+        +'<div class="card-footer"><span class="folder-count">'+totalItems+' 份资料</span>'
+        +'<div class="card-actions"><button class="icon-btn danger" data-action="delete-position" data-id="'+p.id+'">🗑</button></div></div></div>';
+    }).join('')+'</div>';
+  }
+  return '<div class="page-head"><div><h1><span class="kitty-icon">💼</span> 面试优化</h1><div class="subtitle">按岗位管理JD、准备稿件和能力提升资源</div></div>'
+    +'<button class="btn btn-primary" data-action="add-position">+ 添加岗位</button></div>'
+    +'<div class="section"><div class="section-head"><h2>🎬 面试能力提升推荐</h2><span class="kitty-chip">视频优先 · 文章补充</span></div>'+renderRecommendations(INTERVIEW_RECOMMENDS)+'</div>'
+    +'<div class="section"><div class="section-head"><h2>面试岗位</h2><span class="kitty-chip">'+positions.length+' 个岗位</span></div>'+html+'</div>';
+}
+
+function renderPositionDetail(id){
+  const p=(state.data?.positions||[]).find(x=>x.id===id);
+  if(!p) return '<div class="empty">岗位不存在</div>';
+  const jdHTML=(p.jdList||[]).length===0
+    ?'<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">暂无JD</div></div>'
+    :'<div class="card-grid">'+p.jdList.map(j=>{
+      return '<div class="file-card" data-action="view-position-item" data-position-id="'+p.id+'" data-type="jdList" data-item-id="'+j.id+'">'
+        +'<div class="card-top"><div class="card-icon bg-blue">📋</div><div><div class="card-name">'+escapeHtml(j.title)+'</div></div></div>'
+        +'<div class="card-footer"><span class="card-meta">点击查看</span>'
+        +'<div class="card-actions"><button class="icon-btn danger" data-action="delete-position-item" data-position-id="'+p.id+'" data-type="jdList" data-item-id="'+j.id+'">🗑</button></div></div></div>';
+    }).join('')+'</div>';
+  const noteHTML=(p.prepNotes||[]).length===0
+    ?'<div class="empty"><div class="empty-icon">📝</div><div class="empty-text">暂无准备稿件</div></div>'
+    :'<div class="card-grid">'+p.prepNotes.map(n=>{
+      return '<div class="file-card" data-action="view-position-item" data-position-id="'+p.id+'" data-type="prepNotes" data-item-id="'+n.id+'">'
+        +'<div class="card-top"><div class="card-icon bg-amber">📝</div><div><div class="card-name">'+escapeHtml(n.title)+'</div></div></div>'
+        +'<div class="card-footer"><span class="card-meta">点击查看</span>'
+        +'<div class="card-actions"><button class="icon-btn danger" data-action="delete-position-item" data-position-id="'+p.id+'" data-type="prepNotes" data-item-id="'+n.id+'">🗑</button></div></div></div>';
+    }).join('')+'</div>';
+  return '<button class="btn-back" data-action="navigate" data-view="optimization">← 返回岗位列表</button>'
+    +'<div class="detail-head"><h1>📁 '+escapeHtml(p.name)+'</h1>'
+    +'<div class="tags">'+(p.company?'<span class="badge badge-blue">'+escapeHtml(p.company)+'</span>':'')+'</div></div>'
+    +'<div class="section"><div class="section-head"><h2>📋 岗位JD</h2><button class="btn btn-sm btn-primary" data-action="add-position-item" data-position-id="'+p.id+'" data-type="jdList">+ 添加JD</button></div>'+jdHTML+'</div>'
+    +'<div class="section"><div class="section-head"><h2>📝 面试准备稿件</h2><button class="btn btn-sm btn-primary" data-action="add-position-item" data-position-id="'+p.id+'" data-type="prepNotes">+ 添加稿件</button></div>'+noteHTML+'</div>';
+}
+
+/* ========== 收入 ========== */
+function renderIncome(){
+  const income=state.data?.income||[];
+  const total=income.reduce((s,i)=>s+parseFloat(i.amount),0);
+  const monthTotal=income.filter(i=>monthKey(i.date)===monthKey(todayStr())).reduce((s,i)=>s+parseFloat(i.amount),0);
+  const days=[];
+  for(let i=6;i>=0;i--){
+    const d=new Date(); d.setDate(d.getDate()-i);
+    const ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const dayTotal=income.filter(x=>x.date===ds).reduce((s,x)=>s+parseFloat(x.amount),0);
+    days.push({date:ds,label:(d.getMonth()+1)+'/'+d.getDate(),amount:dayTotal});
+  }
+  const maxDay=Math.max(...days.map(d=>d.amount),1);
+  const chartHTML='<div class="chart-bars">'+days.map(d=>{
+    const h=Math.round(d.amount/maxDay*100);
+    return '<div class="chart-bar" title="'+d.date+'"><div class="chart-bar-val">'+(d.amount>0?formatMoney(d.amount):'')+'</div>'
+      +'<div class="chart-bar-fill" style="height:'+h+'%"></div><div class="chart-bar-label">'+d.label+'</div></div>';
+  }).join('')+'</div>';
+
+  let tableHTML='';
+  if(income.length===0){
+    tableHTML='<div class="empty"><div class="empty-icon">💰</div><div class="empty-text">暂无收入记录</div></div>';
+  }else{
+    const sorted=[...income].sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
+    tableHTML='<div class="table-wrap"><table><thead><tr><th>日期</th><th>时间</th><th>金额</th><th>课时</th><th>备注</th><th></th></tr></thead><tbody>'
+      +sorted.map(i=>{
+        return '<tr><td>'+escapeHtml(i.date)+'</td><td>'+escapeHtml(i.time)+'</td>'
+          +'<td class="amount">'+formatMoney(i.amount)+'</td>'
+          +'<td>'+escapeHtml(i.hours||'')+'</td>'
+          +'<td>'+escapeHtml(i.note||'')+'</td>'
+          +'<td><button class="icon-btn danger" data-action="delete-income" data-id="'+i.id+'">🗑</button></td></tr>';
+      }).join('')+'</tbody></table></div>';
+  }
+
+  return '<div class="page-head"><div><h1>💰 收入记录</h1><div class="subtitle">记录每一笔收入</div></div>'
+    +'<button class="btn btn-primary" data-action="add-income">+ 记录收入</button></div>'
+    +'<div class="income-summary">'
+    +'<div class="stat-card"><div class="stat-icon bg-green">💰</div><div class="stat-info"><div class="stat-val">'+formatMoney(total)+'</div><div class="stat-label">总收入</div></div></div>'
+    +'<div class="stat-card"><div class="stat-icon bg-blue">📅</div><div class="stat-info"><div class="stat-val">'+formatMoney(monthTotal)+'</div><div class="stat-label">本月收入</div></div></div>'
+    +'<div class="stat-card"><div class="stat-icon bg-orange">📊</div><div class="stat-info"><div class="stat-val">'+income.length+'</div><div class="stat-label">记录笔数</div></div></div>'
+    +'</div>'+renderIncomeCalendar()+'<div class="income-chart-box"><h3>近7天收入趋势</h3>'+chartHTML+'</div>'+tableHTML;
+}
+
+/* ========== 支出 ========== */
+function renderExpenses(){
+  const expenses=state.data?.expenses||[];
+  const income=state.data?.income||[];
+  const total=expenses.reduce((s,i)=>s+parseFloat(i.amount),0);
+  const monthTotal=expenses.filter(i=>monthKey(i.date)===monthKey(todayStr())).reduce((s,i)=>s+parseFloat(i.amount),0);
+  const monthIncome=income.filter(i=>monthKey(i.date)===monthKey(todayStr())).reduce((s,i)=>s+parseFloat(i.amount),0);
+  const balance=monthIncome-monthTotal;
+  const quickCats=[
+    ['餐饮','🍔'],['交通','🚗'],['购物','🛍️'],['医疗','💊'],
+    ['工作','💼'],['补品','🩸'],['运动','🏃'],['书籍','📖']
+  ];
+  const quickHTML='<div class="quick-grid">'+quickCats.map(([name,icon])=>
+    '<div class="quick-item" data-action="quick-expense" data-category="'+name+'"><div class="quick-icon">'+icon+'</div><div class="quick-name">'+name+'</div></div>'
+  ).join('')+'</div>';
+  let tableHTML='';
+  if(expenses.length===0){
+    tableHTML='<div class="empty"><div class="empty-icon">🧾</div><div class="empty-text">暂无支出记录</div></div>';
+  }else{
+    const sorted=[...expenses].sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
+    tableHTML='<div class="table-wrap"><table><thead><tr><th>日期</th><th>时间</th><th>金额</th><th>分类</th><th>备注</th><th></th></tr></thead><tbody>'
+      +sorted.map(i=>'<tr><td>'+escapeHtml(i.date)+'</td><td>'+escapeHtml(i.time)+'</td><td class="amount">'+formatMoney(i.amount)+'</td><td>'+escapeHtml(i.category||'其他')+'</td><td>'+escapeHtml(i.note||'')+'</td><td><button class="icon-btn danger" data-action="delete-expense" data-id="'+i.id+'">🗑</button></td></tr>').join('')
+      +'</tbody></table></div>';
+  }
+  return '<div class="page-head"><div><h1>🧾 支出</h1><div class="subtitle">账本首页 · 收入支出同步统计</div></div></div>'
+    +'<div class="balance-card"><div class="balance-label">本月结余</div><div class="balance-val">'+formatMoney(balance)+'</div>'
+    +'<div class="balance-row"><div><div class="balance-mini-label">收入</div><div class="balance-mini-val">'+formatMoney(monthIncome)+'</div></div>'
+    +'<div><div class="balance-mini-label">支出</div><div class="balance-mini-val">'+formatMoney(monthTotal)+'</div></div></div></div>'
+    +'<div class="budget-card"><div class="budget-head"><span>🐽 本月预算</span><span class="budget-unset">未设置预算</span></div><div class="budget-bar"><div class="budget-used"></div></div><div class="card-meta">已用 '+formatMoney(monthTotal)+'</div></div>'
+    +'<div class="money-actions"><button class="money-action expense" data-action="add-expense">－ 记支出</button><button class="money-action income" data-action="add-income">＋ 记收入</button></div>'
+    +'<div class="section"><div class="section-head"><h2>📝 快捷分类</h2></div>'+quickHTML+'</div>'
+    +'<div class="section"><div class="section-head"><h2>支出明细</h2><span class="kitty-chip">总支出 '+formatMoney(total)+' · '+expenses.length+' 笔</span></div>'+tableHTML+'</div>';
+}
+
+/* ========== 弹窗 ========== */
+function openModal(html){
+  document.getElementById('modalBox').innerHTML=html;
+  document.getElementById('modalOverlay').classList.add('active');
+}
+function closeModal(){
+  document.getElementById('modalOverlay').classList.remove('active');
+  modalCtx=null;
+}
+
+function openFormModal(type,mode,data,parent){
+  data=data||{};
+  const isEdit=mode==='edit';
+  let title='',body='';
+  switch(type){
+    case 'task':
+      title=isEdit?'编辑任务':'添加任务';
+      body='<div class="form-group"><label>任务名称</label><input type="text" name="title" required value="'+escapeHtml(data.title||'')+'" placeholder="输入任务名称"></div>'
+        +'<div class="form-row"><div class="form-group"><label>分类</label><select name="category">'
+        +['正职工作','副业工作','面试准备'].map(c=>'<option value="'+c+'" '+(data.category===c?'selected':'')+'>'+c+'</option>').join('')
+        +'</select></div><div class="form-group"><label>截止日期</label><input type="date" name="deadline" required value="'+(data.deadline||todayStr())+'"></div></div>'
+        +'<div class="form-group"><label>时间段（选填）</label><input type="text" name="schedule_time" value="'+escapeHtml(data.schedule_time||'')+'" placeholder="如：10:00-12:00"></div>';
+      break;
+    case 'file':
+      title=isEdit?'编辑文件':'添加工作文件';
+      body='<div class="form-group"><label>文件名称</label><input type="text" name="title" required value="'+escapeHtml(data.title||'')+'" placeholder="输入文件名称"></div>'
+        +'<div class="form-group"><label>简述</label><input type="text" name="description" value="'+escapeHtml(data.description||'')+'" placeholder="一句话描述"></div>'
+        +'<div class="form-group"><label>内容</label><textarea name="content" rows="10" placeholder="输入文件内容...">'+escapeHtml(data.content||'')+'</textarea></div>';
+      break;
+    case 'course':
+      title='添加课程链接';
+      body='<div class="form-group"><label>课程名称</label><input type="text" name="title" required value="'+escapeHtml(data.title||'')+'" placeholder="输入课程名称"></div>'
+        +'<div class="form-group"><label>课程链接</label><input type="url" name="url" required value="'+escapeHtml(data.url||'')+'" placeholder="https://..."></div>'
+        +'<div class="form-group"><label>简述</label><input type="text" name="description" value="'+escapeHtml(data.description||'')+'" placeholder="一句话描述"></div>';
+      break;
+    case 'student':
+      title='添加学生';
+      body='<div class="form-row"><div class="form-group"><label>学生姓名</label><input type="text" name="name" required value="'+escapeHtml(data.name||'')+'" placeholder="输入学生姓名"></div>'
+        +'<div class="form-group"><label>年级</label><input type="text" name="grade" value="'+escapeHtml(data.grade||'')+'" placeholder="如：高二"></div></div>'
+        +'<div class="form-group"><label>辅导科目</label><input type="text" name="subject" value="'+escapeHtml(data.subject||'')+'" placeholder="如：数学"></div>';
+      break;
+    case 'material':
+      title=parent&&parent.type==='lectures'?(isEdit?'编辑讲稿':'添加讲稿'):(isEdit?'编辑课件':'添加课件');
+      body='<div class="form-group"><label>标题</label><input type="text" name="title" required value="'+escapeHtml(data.title||'')+'" placeholder="输入标题"></div>'
+        +'<div class="form-group"><label>内容</label><textarea name="content" rows="12" placeholder="输入内容...">'+escapeHtml(data.content||'')+'</textarea></div>';
+      break;
+    case 'position':
+      title='添加岗位';
+      body='<div class="form-group"><label>岗位名称</label><input type="text" name="name" required value="'+escapeHtml(data.name||'')+'" placeholder="如：高级培训经理"></div>'
+        +'<div class="form-group"><label>公司（选填）</label><input type="text" name="company" value="'+escapeHtml(data.company||'')+'" placeholder="如：某互联网公司"></div>';
+      break;
+    case 'position-item':
+      title=parent&&parent.type==='jdList'?(isEdit?'编辑JD':'添加JD'):(isEdit?'编辑面试稿件':'添加面试稿件');
+      body='<div class="form-group"><label>标题</label><input type="text" name="title" required value="'+escapeHtml(data.title||'')+'" placeholder="输入标题"></div>'
+        +'<div class="form-group"><label>内容</label><textarea name="content" rows="12" placeholder="输入内容...">'+escapeHtml(data.content||'')+'</textarea></div>';
+      break;
+    case 'income':
+      title='记录收入';
+      body='<div class="form-row"><div class="form-group"><label>日期</label><input type="date" name="date" required value="'+(data.date||todayStr())+'"></div>'
+        +'<div class="form-group"><label>时间</label><input type="time" name="time" required value="'+(data.time||nowTimeStr())+'"></div></div>'
+        +'<div class="form-row"><div class="form-group"><label>金额（元）</label><input type="number" name="amount" required min="0" step="0.01" value="'+(data.amount||'')+'" placeholder="输入金额"></div>'
+        +'<div class="form-group"><label>课时</label><input type="text" name="hours" value="'+escapeHtml(data.hours||'')+'" placeholder="如：2课时、4课时"></div></div>'
+        +'<div class="form-group"><label>备注</label><input type="text" name="note" value="'+escapeHtml(data.note||'')+'" placeholder="如：王小明数学辅导"></div>';
+      break;
+    case 'expense':
+      title='记录支出';
+      body='<div class="form-row"><div class="form-group"><label>日期</label><input type="date" name="date" required value="'+(data.date||todayStr())+'"></div>'
+        +'<div class="form-group"><label>时间</label><input type="time" name="time" required value="'+(data.time||nowTimeStr())+'"></div></div>'
+        +'<div class="form-row"><div class="form-group"><label>金额（元）</label><input type="number" name="amount" required min="0" step="0.01" value="'+(data.amount||'')+'" placeholder="输入金额"></div>'
+        +'<div class="form-group"><label>分类</label><select name="category">'
+        +['餐饮','交通','购物','医疗','工作','补品','运动','书籍','其他'].map(c=>'<option value="'+c+'" '+(data.category===c?'selected':'')+'>'+c+'</option>').join('')
+        +'</select></div></div>'
+        +'<div class="form-group"><label>备注</label><input type="text" name="note" value="'+escapeHtml(data.note||'')+'" placeholder="如：ChatGPT会员、课程资料、通勤"></div>';
+      break;
+  }
+  modalCtx={type,mode,id:data.id,parent,item:data};
+  openModal('<div class="modal-head"><h3>'+title+'</h3><button class="modal-close" data-action="close-modal">×</button></div>'
+    +'<div class="modal-body"><form id="modalForm" onsubmit="return false">'+body+'</form></div>'
+    +'<div class="modal-foot"><button class="btn btn-secondary" data-action="close-modal">取消</button><button class="btn btn-primary" data-action="submit-form">'+(isEdit?'保存修改':'确定添加')+'</button></div>');
+}
+
+function openViewModal(type,item,parent){
+  modalCtx={type,mode:'view',id:item.id,parent,item};
+  const fileBlock=item.file_url?'<div class="view-meta"><a class="file-open" href="'+escapeHtml(item.file_url)+'" target="_blank" rel="noopener">📎 打开完整文件</a>'
+    +(item.file_name?'<span class="file-meta">'+escapeHtml(item.file_name)+' '+bytesToSize(item.file_size)+'</span>':'')+'</div>':'';
+  const content=(item.content?escapeHtml(item.content):'<span style="color:var(--text-secondary)">暂无文字内容</span>');
+  openModal('<div class="modal-head"><h3>'+escapeHtml(item.title)+'</h3><button class="modal-close" data-action="close-modal">×</button></div>'
+    +'<div class="modal-body">'+fileBlock+'<div class="view-content">'+content+'</div></div>'
+    +'<div class="modal-foot"><button class="btn btn-danger" data-action="delete-from-view">删除</button><button class="btn btn-primary" data-action="edit-from-view">编辑</button></div>');
+}
+
+function openUploadModal(studentId,type){
+  modalCtx={type:'upload-materials',mode:'add',parent:{studentId,type}};
+  openModal('<div class="modal-head"><h3>'+(type==='lectures'?'上传讲稿文件':'上传课件文件')+'</h3><button class="modal-close" data-action="close-modal">×</button></div>'
+    +'<div class="modal-body"><form id="modalForm" onsubmit="return false">'
+    +'<div class="upload-note">可以一次选择多个文件。上传后会进入 Supabase 云端存储，手机端点开同一个学生文件夹即可查看完整文件。</div>'
+    +'<div class="form-group"><label>选择文件</label><input type="file" name="files" multiple required></div>'
+    +'<div class="form-group"><label>备注（选填）</label><textarea name="content" rows="4" placeholder="可以写课件用途、讲稿说明等"></textarea></div>'
+    +'</form></div><div class="modal-foot"><button class="btn btn-secondary" data-action="close-modal">取消</button><button class="btn btn-primary" data-action="submit-form">开始上传</button></div>');
+}
+
+function openTrainingUploadModal(){
+  modalCtx={type:'upload-training-file',mode:'add'};
+  openModal('<div class="modal-head"><h3>上传培训工作文件</h3><button class="modal-close" data-action="close-modal">×</button></div>'
+    +'<div class="modal-body"><form id="modalForm" onsubmit="return false">'
+    +'<div class="upload-note">可以上传 Word、PDF、PPT、图片等工作文件。上传后电脑和手机都能打开完整文件。</div>'
+    +'<div class="form-group"><label>文件标题（选填）</label><input type="text" name="title" placeholder="不填则使用文件名"></div>'
+    +'<div class="form-group"><label>简述（选填）</label><input type="text" name="description" placeholder="一句话描述这个文件"></div>'
+    +'<div class="form-group"><label>选择文件</label><input type="file" name="files" multiple required></div>'
+    +'</form></div><div class="modal-foot"><button class="btn btn-secondary" data-action="close-modal">取消</button><button class="btn btn-primary" data-action="submit-form">开始上传</button></div>');
+}
+
+function openTaskDateModal(date){
+  const list=(state.data?.tasks||[]).filter(t=>t.deadline===date).sort((a,b)=>Number(a.completed)-Number(b.completed));
+  const body=list.length?'<div class="task-list">'+list.map(t=>'<div class="task-item '+(t.completed?'completed':'')+'">'
+    +'<div class="task-check" data-action="toggle-task" data-id="'+t.id+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>'
+    +'<div class="task-body"><div class="task-title">'+escapeHtml(t.title)+'</div><div class="task-meta"><span class="badge '+(CATEGORY_COLORS[t.category]||'badge-blue')+'">'+escapeHtml(t.category)+'</span></div></div></div>').join('')+'</div>'
+    :'<div class="empty"><div class="empty-icon">🎀</div><div class="empty-text">这一天暂无待办</div></div>';
+  openModal('<div class="modal-head"><h3>'+escapeHtml(date)+' 的待办</h3><button class="modal-close" data-action="close-modal">×</button></div><div class="modal-body">'+body+'</div>');
+}
+
+function openIncomeDateModal(date){
+  const list=(state.data?.income||[]).filter(i=>i.date===date).sort((a,b)=>b.time.localeCompare(a.time));
+  const total=list.reduce((s,i)=>s+parseFloat(i.amount),0);
+  const body=list.length?'<div class="view-meta"><span class="kitty-chip">当天合计 '+formatMoney(total)+'</span><span class="kitty-chip">'+list.length+' 笔记录</span></div>'
+    +'<div class="table-wrap"><table><thead><tr><th>时间</th><th>金额</th><th>课时</th><th>备注</th></tr></thead><tbody>'
+    +list.map(i=>'<tr><td>'+escapeHtml(i.time)+'</td><td class="amount">'+formatMoney(i.amount)+'</td><td>'+escapeHtml(i.hours||'')+'</td><td>'+escapeHtml(i.note||'')+'</td></tr>').join('')+'</tbody></table></div>'
+    :'<div class="empty"><div class="empty-icon">💗</div><div class="empty-text">这一天暂无收入记录</div></div>';
+  openModal('<div class="modal-head"><h3>'+escapeHtml(date)+' 的收入</h3><button class="modal-close" data-action="close-modal">×</button></div><div class="modal-body">'+body+'</div>');
+}
+
+function normalizeUploadFileName(name){
+  return (name||'file')
+    .normalize('NFKC')
+    .replace(/[^\w.\-\u4e00-\u9fa5]/g,'_')
+    .replace(/_+/g,'_')
+    .replace(/^_+|_+$/g,'') || 'file';
+}
+
+function makeUploadPath(prefix,file){
+  const safeName=normalizeUploadFileName(file.name);
+  const stamp=new Date().toISOString().replace(/[:.]/g,'-');
+  const rand=Math.random().toString(16).slice(2);
+  return prefix.replace(/^\/+|\/+$/g,'')+'/'+stamp+'-'+rand+'-'+safeName;
+}
+
+function readableUploadError(err,bucket){
+  const msg=(err&&(err.message||err.error||err.statusText))?String(err.message||err.error||err.statusText):String(err||'未知错误');
+  const status=err&&err.status?('状态码 '+err.status+'，'):'';
+  if(/bucket|not found|404/i.test(msg)) return bucket+' 云存储桶不存在，请在 Supabase 里执行最新初始化 SQL';
+  if(/row-level security|policy|permission|unauthorized|forbidden|403|jwt/i.test(msg)) return bucket+' 云存储权限未放开，请检查 Storage policy';
+  if(/payload|size|too large|413/i.test(msg)) return '文件过大，当前线上环境拒绝上传';
+  return bucket+' 上传失败：'+status+msg;
+}
+
+async function uploadFileToCloud(file,options){
+  const attempts=[
+    {bucket:options.primaryBucket,prefix:options.primaryPrefix},
+    {bucket:options.fallbackBucket,prefix:options.fallbackPrefix}
+  ].filter((item,index,arr)=>item.bucket&&item.prefix&&arr.findIndex(x=>x.bucket===item.bucket&&x.prefix===item.prefix)===index);
+  const errors=[];
+
+  for(const attempt of attempts){
+    const path=makeUploadPath(attempt.prefix,file);
+    const {error}=await supabaseClient.storage
+      .from(attempt.bucket)
+      .upload(path,file,{
+        upsert:true,
+        cacheControl:'3600',
+        contentType:file.type||'application/octet-stream'
+      });
+    if(!error){
+      const {data:urlData}=supabaseClient.storage.from(attempt.bucket).getPublicUrl(path);
+      return {bucket:attempt.bucket,path,publicUrl:urlData.publicUrl};
+    }
+    errors.push(readableUploadError(error,attempt.bucket));
+  }
+
+  throw new Error(errors.join('；'));
+}
+
+async function uploadStudentFiles(parent,content){
+  const input=document.querySelector('#modalForm input[name="files"]');
+  const files=[...(input?.files||[])];
+  if(files.length===0){ showToast('请先选择文件'); return; }
+  if(!useCloud){ showToast('文件同步需要云同步模式'); return; }
+  setLoading(true);
+  try{
+    for(const file of files){
+      const uploaded=await uploadFileToCloud(file,{
+        primaryBucket:STUDENT_FILE_BUCKET,
+        primaryPrefix:'students/'+parent.studentId+'/'+parent.type,
+        fallbackBucket:WORKBENCH_FILE_BUCKET,
+        fallbackPrefix:'students/'+parent.studentId+'/'+parent.type
+      });
+      const {error:dbErr}=await supabaseClient.from('student_materials').insert({
+        student_id:parent.studentId,
+        title:file.name,
+        content:content||'',
+        type:parent.type,
+        file_name:file.name,
+        file_path:uploaded.bucket+'/'+uploaded.path,
+        file_url:uploaded.publicUrl,
+        mime_type:file.type||'application/octet-stream',
+        file_size:file.size
+      });
+      if(dbErr) throw new Error('文件已上传，但学生资料记录保存失败：'+dbErr.message);
+    }
+    await loadData();
+    closeModal(); render(); showToast('文件已上传并同步 ✓');
+  }catch(err){
+    console.error(err);
+    showToast('上传失败: '+(err.message||err));
+  }finally{
+    setLoading(false);
+  }
+}
+
+async function uploadTrainingFiles(data){
+  const input=document.querySelector('#modalForm input[name="files"]');
+  const files=[...(input?.files||[])];
+  if(files.length===0){ showToast('请先选择文件'); return; }
+  if(!useCloud){ showToast('文件同步需要云同步模式'); return; }
+  setLoading(true);
+  try{
+    for(const file of files){
+      const uploaded=await uploadFileToCloud(file,{
+        primaryBucket:WORKBENCH_FILE_BUCKET,
+        primaryPrefix:'training',
+        fallbackBucket:STUDENT_FILE_BUCKET,
+        fallbackPrefix:'training'
+      });
+      const {error:dbErr}=await supabaseClient.from('training_files').insert({
+        title:data.title||file.name,
+        description:data.description||'',
+        content:'',
+        file_name:file.name,
+        file_path:uploaded.bucket+'/'+uploaded.path,
+        file_url:uploaded.publicUrl,
+        mime_type:file.type||'application/octet-stream',
+        file_size:file.size
+      });
+      if(dbErr) throw new Error('文件已上传，但培训文件记录保存失败：'+dbErr.message);
+    }
+    await loadData();
+    closeModal(); render(); showToast('培训文件已上传并同步 ✓');
+  }catch(err){
+    console.error(err);
+    showToast('上传失败: '+(err.message||err));
+  }finally{
+    setLoading(false);
+  }
+}
+
+/* ========== 表单提交 ========== */
+async function submitForm(){
+  const form=document.getElementById('modalForm');
+  if(!form||!form.reportValidity()) return;
+  const fd=new FormData(form);
+  const data={};
+  for(let [k,v] of fd.entries()){ if(k!=='files') data[k]=v; }
+  const {type,mode,id,parent}=modalCtx;
+  let error=null;
+
+  if(type==='upload-materials'){
+    await uploadStudentFiles(parent,data.content||'');
+    return;
+  }
+  if(type==='upload-training-file'){
+    await uploadTrainingFiles(data);
+    return;
+  }
+
+  if(!useCloud){
+    // 本地模式
+    switch(type){
+      case 'task':
+        if(mode==='add') state.data.tasks.push({id:Date.now().toString(),...data,completed:false});
+        else Object.assign(state.data.tasks.find(t=>t.id===id)||{},data);
+        break;
+      case 'file':
+        if(mode==='add') state.data.training.files.push({id:Date.now().toString(),...data});
+        else Object.assign(state.data.training.files.find(f=>f.id===id)||{},data);
+        break;
+      case 'course': state.data.training.courses.push({id:Date.now().toString(),...data}); break;
+      case 'student': state.data.students.push({id:Date.now().toString(),...data,materials:[],lectures:[]}); break;
+      case 'material':
+        if(mode==='add'){ const s=state.data.students.find(x=>x.id===parent.studentId); if(s) s[parent.type].push({id:Date.now().toString(),...data}); }
+        else { const s=state.data.students.find(x=>x.id===parent.studentId); if(s){ const item=s[parent.type].find(i=>i.id===id); if(item) Object.assign(item,data); } }
+        break;
+      case 'position': state.data.positions.push({id:Date.now().toString(),...data,jdList:[],prepNotes:[]}); break;
+      case 'position-item':
+        if(mode==='add'){ const p=state.data.positions.find(x=>x.id===parent.positionId); if(p) p[parent.type].push({id:Date.now().toString(),...data}); }
+        else { const p=state.data.positions.find(x=>x.id===parent.positionId); if(p){ const item=p[parent.type].find(i=>i.id===id); if(item) Object.assign(item,data); } }
+        break;
+      case 'income': state.data.income.push({id:Date.now().toString(),...data}); break;
+      case 'expense': state.data.expenses.push({id:Date.now().toString(),...data}); break;
+    }
+    saveDataLocal();
+    closeModal(); render(); showToast(mode==='add'?'添加成功 ✓':'更新成功 ✓');
+    return;
+  }
+
+  // 云同步模式
+  switch(type){
+    case 'task':
+      if(mode==='add'){ const {error:e}=await supabaseClient.from('tasks').insert({...data,completed:false}); error=e; }
+      else { const {error:e}=await supabaseClient.from('tasks').update(data).eq('id',id); error=e; }
+      break;
+    case 'file':
+      if(mode==='add'){ const {error:e}=await supabaseClient.from('training_files').insert(data); error=e; }
+      else { const {error:e}=await supabaseClient.from('training_files').update(data).eq('id',id); error=e; }
+      break;
+    case 'course': { const {error:e}=await supabaseClient.from('training_courses').insert(data); error=e; break; }
+    case 'student': { const {error:e}=await supabaseClient.from('students').insert(data); error=e; break; }
+    case 'material':
+      if(mode==='add'){ const {error:e}=await supabaseClient.from('student_materials').insert({student_id:parent.studentId,...data,type:parent.type}); error=e; }
+      else { const {error:e}=await supabaseClient.from('student_materials').update({title:data.title,content:data.content}).eq('id',id); error=e; }
+      break;
+    case 'position': { const {error:e}=await supabaseClient.from('positions').insert(data); error=e; break; }
+    case 'position-item':
+      if(mode==='add'){ const {error:e}=await supabaseClient.from('position_items').insert({position_id:parent.positionId,...data,type:parent.type}); error=e; }
+      else { const {error:e}=await supabaseClient.from('position_items').update({title:data.title,content:data.content}).eq('id',id); error=e; }
+      break;
+    case 'income': { const {error:e}=await supabaseClient.from('income').insert({...data,amount:parseFloat(data.amount)}); error=e; break; }
+    case 'expense': { const {error:e}=await supabaseClient.from('expenses').insert({...data,amount:parseFloat(data.amount)}); error=e; break; }
+  }
+
+  if(error){ showToast('保存失败: '+error.message); return; }
+  await loadData();
+  closeModal(); render();
+  showToast(mode==='add'?'添加成功 ✓':'更新成功 ✓');
+}
+
+/* ========== CRUD 操作 ========== */
+async function toggleTask(id){
+  const t=(state.data?.tasks||[]).find(x=>x.id===id);
+  if(!t) return;
+  if(!useCloud){ t.completed=!t.completed; saveDataLocal(); render(); showToast(t.completed?'任务已完成 🎉':'已取消完成'); return; }
+  const {error}=await supabaseClient.from('tasks').update({completed:!t.completed}).eq('id',id);
+  if(error){ showToast('操作失败'); return; }
+  await loadData(); render(); showToast(!t.completed?'任务已完成 🎉':'已取消完成');
+}
+
+async function deleteTask(id){
+  if(!useCloud){ state.data.tasks=state.data.tasks.filter(t=>t.id!==id); saveDataLocal(); render(); showToast('已删除'); return; }
+  const {error}=await supabaseClient.from('tasks').delete().eq('id',id);
+  if(error){ showToast('删除失败'); return; }
+  await loadData(); render(); showToast('已删除');
+}
+
+async function deleteFile(id){
+  if(!useCloud){ state.data.training.files=state.data.training.files.filter(f=>f.id!==id); saveDataLocal(); render(); showToast('已删除'); return; }
+  const {error}=await supabaseClient.from('training_files').delete().eq('id',id);
+  if(error){ showToast('删除失败'); return; }
+  await loadData(); render(); showToast('已删除');
+}
+
+async function deleteCourse(id){
+  if(!useCloud){ state.data.training.courses=state.data.training.courses.filter(c=>c.id!==id); saveDataLocal(); render(); showToast('已删除'); return; }
+  const {error}=await supabaseClient.from('training_courses').delete().eq('id',id);
+  if(error){ showToast('删除失败'); return; }
+  await loadData(); render(); showToast('已删除');
+}
+
+async function deleteStudent(id){
+  if(!useCloud){ state.data.students=state.data.students.filter(s=>s.id!==id); saveDataLocal(); navigate('students'); showToast('已删除'); return; }
+  const {error}=await supabaseClient.from('students').delete().eq('id',id);
+  if(error){ showToast('删除失败'); return; }
+  await loadData(); navigate('students'); showToast('已删除');
+}
+
+async function deleteMaterial(studentId,type,itemId){
+  if(!useCloud){ const s=state.data.students.find(x=>x.id===studentId); if(s){ s[type]=s[type].filter(i=>i.id!==itemId); saveDataLocal(); render(); showToast('已删除'); } return; }
+  const {error}=await supabaseClient.from('student_materials').delete().eq('id',itemId);
+  if(error){ showToast('删除失败'); return; }
+  await loadData(); render(); showToast('已删除');
+}
+
+async function deletePosition(id){
+  if(!useCloud){ state.data.positions=state.data.positions.filter(p=>p.id!==id); saveDataLocal(); navigate('optimization'); showToast('已删除'); return; }
+  const {error}=await supabaseClient.from('positions').delete().eq('id',id);
+  if(error){ showToast('删除失败'); return; }
+  await loadData(); navigate('optimization'); showToast('已删除');
+}
+
+async function deletePositionItem(positionId,type,itemId){
+  if(!useCloud){ const p=state.data.positions.find(x=>x.id===positionId); if(p){ p[type]=p[type].filter(i=>i.id!==itemId); saveDataLocal(); render(); showToast('已删除'); } return; }
+  const {error}=await supabaseClient.from('position_items').delete().eq('id',itemId);
+  if(error){ showToast('删除失败'); return; }
+  await loadData(); render(); showToast('已删除');
+}
+
+async function deleteIncome(id){
+  if(!useCloud){ state.data.income=state.data.income.filter(i=>i.id!==id); saveDataLocal(); render(); showToast('已删除'); return; }
+  const {error}=await supabaseClient.from('income').delete().eq('id',id);
+  if(error){ showToast('删除失败'); return; }
+  await loadData(); render(); showToast('已删除');
+}
+
+async function deleteExpense(id){
+  if(!useCloud){ state.data.expenses=state.data.expenses.filter(i=>i.id!==id); saveDataLocal(); render(); showToast('已删除'); return; }
+  const {error}=await supabaseClient.from('expenses').delete().eq('id',id);
+  if(error){ showToast('删除失败'); return; }
+  await loadData(); render(); showToast('已删除');
+}
+
+async function favoriteRecommend(source,index){
+  const list=source==='student'?dailyItems(STUDENT_RECOMMENDS):dailyItems(TRAINING_RECOMMENDS);
+  const item=list[Number(index)];
+  if(!item) return;
+  const data={title:item.title,url:item.url,description:'【收藏自'+(source==='student'?'学生每日推荐':'培训精选推荐')+'】'+item.desc};
+  const exists=(state.data?.training?.courses||[]).some(c=>c.url===data.url);
+  if(exists){ showToast('已经收藏过啦'); return; }
+  if(!useCloud){
+    state.data.training.courses.push({id:Date.now().toString(),...data});
+    saveDataLocal(); render(); showToast('已收藏到我的课程收藏 ✓'); return;
+  }
+  const {error}=await supabaseClient.from('training_courses').insert(data);
+  if(error){ showToast('收藏失败: '+error.message); return; }
+  await loadData(); render(); showToast('已收藏到我的课程收藏 ✓');
+}
+
+/* ========== 事件委托 ========== */
+document.addEventListener('click',async function(e){
+  const delCourse=e.target.closest('[data-action="delete-course"]');
+  if(delCourse){ e.preventDefault(); if(confirm('确定删除此课程链接？')) await deleteCourse(delCourse.dataset.id); return; }
+
+  const target=e.target.closest('[data-action]');
+  if(!target) return;
+  const a=target.dataset.action;
+  const d=target.dataset;
+
+  switch(a){
+    case 'navigate': navigate(d.view,d.subview,d.id); break;
+    case 'filter': state.filter=d.filter; render(); break;
+    case 'close-modal': closeModal(); break;
+    case 'submit-form': await submitForm(); break;
+    case 'view-task-date': openTaskDateModal(d.date); break;
+    case 'view-income-date': openIncomeDateModal(d.date); break;
+    case 'favorite-recommend': await favoriteRecommend(d.source,d.index); break;
+    case 'cal-task-prev': state.calOffsetTask--; render(); break;
+    case 'cal-task-next': state.calOffsetTask++; render(); break;
+    case 'cal-task-reset': state.calOffsetTask=0; render(); break;
+    case 'cal-income-prev': state.calOffsetIncome--; render(); break;
+    case 'cal-income-next': state.calOffsetIncome++; render(); break;
+    case 'cal-income-reset': state.calOffsetIncome=0; render(); break;
+
+    case 'add-task': openFormModal('task','add'); break;
+    case 'edit-task': { const t=(state.data?.tasks||[]).find(x=>x.id===d.id); if(t) openFormModal('task','edit',t); break; }
+    case 'toggle-task': await toggleTask(d.id); break;
+    case 'delete-task': if(confirm('确定删除此任务？')) await deleteTask(d.id); break;
+
+    case 'add-file': openFormModal('file','add'); break;
+    case 'upload-training-file': openTrainingUploadModal(); break;
+    case 'view-file': { const f=(state.data?.training?.files||[]).find(x=>x.id===d.id); if(f) openViewModal('file',f); break; }
+    case 'delete-file': if(confirm('确定删除此文件？')) await deleteFile(d.id); break;
+
+    case 'add-course': openFormModal('course','add'); break;
+
+    case 'add-student': openFormModal('student','add'); break;
+    case 'view-student': navigate('students','detail',d.id); break;
+    case 'delete-student': if(confirm('确定删除此学生及其所有资料？')) await deleteStudent(d.id); break;
+
+    case 'add-material': openFormModal('material','add',null,{studentId:d.studentId,type:d.type}); break;
+    case 'upload-materials': openUploadModal(d.studentId,d.type); break;
+    case 'view-material': { const s=(state.data?.students||[]).find(x=>x.id===d.studentId); if(s){ const item=s[d.type].find(i=>i.id===d.itemId); if(item) openViewModal('material',item,{studentId:d.studentId,type:d.type}); } break; }
+    case 'delete-material': if(confirm('确定删除？')) await deleteMaterial(d.studentId,d.type,d.itemId); break;
+
+    case 'add-position': openFormModal('position','add'); break;
+    case 'view-position': navigate('optimization','detail',d.id); break;
+    case 'delete-position': if(confirm('确定删除此岗位及其所有资料？')) await deletePosition(d.id); break;
+
+    case 'add-position-item': openFormModal('position-item','add',null,{positionId:d.positionId,type:d.type}); break;
+    case 'view-position-item': { const p=(state.data?.positions||[]).find(x=>x.id===d.positionId); if(p){ const item=p[d.type].find(i=>i.id===d.itemId); if(item) openViewModal('position-item',item,{positionId:d.positionId,type:d.type}); } break; }
+    case 'delete-position-item': if(confirm('确定删除？')) await deletePositionItem(d.positionId,d.type,d.itemId); break;
+
+    case 'add-income': openFormModal('income','add'); break;
+    case 'delete-income': if(confirm('确定删除此记录？')) await deleteIncome(d.id); break;
+
+    case 'add-expense': openFormModal('expense','add'); break;
+    case 'quick-expense': openFormModal('expense','add',{category:d.category}); break;
+    case 'delete-expense': if(confirm('确定删除此支出？')) await deleteExpense(d.id); break;
+
+    case 'edit-from-view': { const ctx=modalCtx; closeModal(); openFormModal(ctx.type,'edit',ctx.item,ctx.parent); break; }
+    case 'delete-from-view': {
+      if(!confirm('确定删除？')) break;
+      const {type,item,parent}=modalCtx;
+      closeModal();
+      switch(type){
+        case 'file': await deleteFile(item.id); break;
+        case 'material': await deleteMaterial(parent.studentId,parent.type,item.id); break;
+        case 'position-item': await deletePositionItem(parent.positionId,parent.type,item.id); break;
+      }
+      break;
+    }
+  }
+});
+
+// 点击遮罩关闭弹窗
+document.getElementById('modalOverlay').addEventListener('click',function(e){
+  if(e.target===this) closeModal();
+});
+
+// ESC关闭弹窗
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape') closeModal();
+});
+
+/* ========== 启动 ========== */
+init();
+</script>
+</body>
+</html>
