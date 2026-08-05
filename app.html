@@ -353,6 +353,22 @@ tr:hover td{background:#fafbfc}
 .view-content{padding:4px 0;font-size:14px;line-height:1.8;color:var(--text);white-space:pre-wrap;word-break:break-word;min-height:60px}
 .view-meta{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border)}
 
+/* ===== 支出日历标签 ===== */
+.calendar-dot.expense{background:#fee2e2;color:#dc2626}
+
+/* ===== 语音口述 ===== */
+.voice-area-wrap{display:flex;gap:8px;align-items:flex-start}
+.voice-area-wrap textarea{flex:1}
+.voice-btn{white-space:nowrap;flex-shrink:0;background:#f3e8ff;color:#7c3aed;border:1px solid #d8b4fe}
+.voice-btn:hover{background:#e9d5ff}
+.voice-btn.recording{background:#ef4444;color:#fff;border-color:#ef4444;animation:pulse 1.2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.7}}
+
+/* ===== 面试复盘展示 ===== */
+.review-section{margin-bottom:16px;padding:14px;background:#fafafa;border-radius:var(--radius-sm);border:1px solid var(--border)}
+.review-label{font-size:14px;font-weight:700;color:var(--text);margin-bottom:8px}
+.review-content{font-size:14px;line-height:1.7;color:var(--text-secondary);white-space:pre-wrap;word-break:break-word}
+
 /* ===== 数据管理 ===== */
 .dm-section{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);margin-bottom:16px}
 .dm-section-title{font-size:16px;font-weight:700;color:var(--text);margin-bottom:12px;display:flex;align-items:center;gap:8px}
@@ -560,7 +576,7 @@ const SAMPLE_DATA = {
 };
 
 /* ========== 状态 ========== */
-let state = { view:'today', subView:null, selectedId:null, filter:'all', data:null, loading:true, calOffsetTask:0, calOffsetIncome:0 };
+let state = { view:'today', subView:null, selectedId:null, filter:'all', data:null, loading:true, calOffsetTask:0, calOffsetIncome:0, calOffsetExpense:0 };
 let modalCtx = null;
 
 /* ========== 工具函数 ========== */
@@ -657,6 +673,27 @@ function renderIncomeCalendar(){
         +(list.length>1?'<div class="calendar-more">'+list.length+' 笔</div>':'')+'</div>';
     }).join('')+'</div></div>';
 }
+function renderExpenseCalendar(){
+  const expenses=state.data?.expenses||[];
+  const off=state.calOffsetExpense||0;
+  const month=getMonthDays(off);
+  const weeks=['日','一','二','三','四','五','六'];
+  const btns='<div class="cal-nav">'
+    +'<button class="cal-nav-btn" data-action="cal-expense-prev">‹ 上月</button>'
+    +'<button class="cal-nav-btn '+(off===0?'cur':'')+'" data-action="cal-expense-reset">本月</button>'
+    +'<button class="cal-nav-btn" data-action="cal-expense-next">下月 ›</button></div>';
+  return '<div class="calendar-box"><div class="calendar-head"><h3>🧾 支出日历</h3>'+btns+'</div>'
+    +'<div class="calendar-month-label">'+month.label+'</div>'
+    +'<div class="calendar-grid">'+weeks.map(w=>'<div class="calendar-week">'+w+'</div>').join('')
+    +month.days.map(d=>{
+      const list=expenses.filter(i=>i.date===d.date);
+      const total=list.reduce((s,i)=>s+parseFloat(i.amount),0);
+      return '<div class="calendar-day '+(!d.currentMonth?'muted ':'')+(d.today?'today':'')+'" data-action="view-expense-date" data-date="'+d.date+'">'
+        +'<div class="calendar-date">'+d.day+'</div>'
+        +(total>0?'<div class="calendar-dot expense">-'+formatMoney(total).replace('¥','')+'</div>':'')
+        +(list.length>1?'<div class="calendar-more">'+list.length+' 笔</div>':'')+'</div>';
+    }).join('')+'</div></div>';
+}
 function showToast(msg){
   const el=document.getElementById('toast');
   el.textContent=msg;
@@ -681,7 +718,7 @@ function ensureDataShape(){
   state.data.training.files=state.data.training.files||[];
   state.data.training.courses=state.data.training.courses||[];
   state.data.students=state.data.students||[];
-  state.data.positions=state.data.positions||[];
+  state.data.positions=(state.data.positions||[]).map(p=>({...p,jdList:p.jdList||[],prepNotes:p.prepNotes||[],interviewReviews:p.interviewReviews||[]}));
   state.data.income=state.data.income||[];
   state.data.expenses=state.data.expenses||[];
 }
@@ -847,8 +884,9 @@ async function loadData(options){
       })),
       positions:(positions||[]).map(p=>({
         id:p.id,name:p.name,company:p.company,
-        jdList:(positionItems||[]).filter(i=>i.position_id===p.id&&i.type==='jdList').map(i=>({id:i.id,title:i.title,content:i.content})),
-        prepNotes:(positionItems||[]).filter(i=>i.position_id===p.id&&i.type==='prepNotes').map(i=>({id:i.id,title:i.title,content:i.content}))
+        jdList:(positionItems||[]).filter(i=>i.position_id===p.id&&i.type==='jdList').map(i=>({id:i.id,title:i.title,content:i.content,file_name:i.file_name,file_path:i.file_path,file_url:i.file_url,mime_type:i.mime_type,file_size:i.file_size})),
+        prepNotes:(positionItems||[]).filter(i=>i.position_id===p.id&&i.type==='prepNotes').map(i=>({id:i.id,title:i.title,content:i.content,file_name:i.file_name,file_path:i.file_path,file_url:i.file_url,mime_type:i.mime_type,file_size:i.file_size})),
+        interviewReviews:(positionItems||[]).filter(i=>i.position_id===p.id&&i.type==='interviewReviews').map(i=>({id:i.id,title:i.title,content:i.content}))
       })),
       income:(income||[]).map(i=>({id:i.id,date:i.date,time:i.time,amount:i.amount,hours:i.hours,note:i.note})),
       expenses:(expenses||[]).map(i=>({id:i.id,date:i.date,time:i.time,amount:i.amount,category:i.category,note:i.note}))
@@ -1119,7 +1157,7 @@ function renderOptimization(){
     html='<div class="empty"><div class="empty-icon">🎯</div><div class="empty-text">暂无岗位，点击右上角添加</div></div>';
   }else{
     html='<div class="card-grid">'+positions.map(p=>{
-      const totalItems=(p.jdList||[]).length+(p.prepNotes||[]).length;
+      const totalItems=(p.jdList||[]).length+(p.prepNotes||[]).length+(p.interviewReviews||[]).length;
       return '<div class="folder-card" data-action="view-position" data-id="'+p.id+'">'
         +'<div class="card-top"><div class="card-icon bg-indigo">📁</div>'
         +'<div><div class="card-name">'+escapeHtml(p.name)+'</div>'
@@ -1140,24 +1178,35 @@ function renderPositionDetail(id){
   const jdHTML=(p.jdList||[]).length===0
     ?'<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">暂无JD</div></div>'
     :'<div class="card-grid">'+p.jdList.map(j=>{
+      const fileTag=j.file_url?'<div class="card-meta">📎 '+escapeHtml(j.file_name||'文件')+'</div>':'';
       return '<div class="file-card" data-action="view-position-item" data-position-id="'+p.id+'" data-type="jdList" data-item-id="'+j.id+'">'
-        +'<div class="card-top"><div class="card-icon bg-blue">📋</div><div><div class="card-name">'+escapeHtml(j.title)+'</div></div></div>'
+        +'<div class="card-top"><div class="card-icon bg-blue">📋</div><div><div class="card-name">'+escapeHtml(j.title)+'</div>'+fileTag+'</div></div>'
         +'<div class="card-footer"><span class="card-meta">点击查看</span>'
         +'<div class="card-actions"><button class="icon-btn danger" data-action="delete-position-item" data-position-id="'+p.id+'" data-type="jdList" data-item-id="'+j.id+'">🗑</button></div></div></div>';
     }).join('')+'</div>';
   const noteHTML=(p.prepNotes||[]).length===0
     ?'<div class="empty"><div class="empty-icon">📝</div><div class="empty-text">暂无准备稿件</div></div>'
     :'<div class="card-grid">'+p.prepNotes.map(n=>{
+      const fileTag=n.file_url?'<div class="card-meta">📎 '+escapeHtml(n.file_name||'文件')+'</div>':'';
       return '<div class="file-card" data-action="view-position-item" data-position-id="'+p.id+'" data-type="prepNotes" data-item-id="'+n.id+'">'
-        +'<div class="card-top"><div class="card-icon bg-amber">📝</div><div><div class="card-name">'+escapeHtml(n.title)+'</div></div></div>'
+        +'<div class="card-top"><div class="card-icon bg-amber">📝</div><div><div class="card-name">'+escapeHtml(n.title)+'</div>'+fileTag+'</div></div>'
         +'<div class="card-footer"><span class="card-meta">点击查看</span>'
         +'<div class="card-actions"><button class="icon-btn danger" data-action="delete-position-item" data-position-id="'+p.id+'" data-type="prepNotes" data-item-id="'+n.id+'">🗑</button></div></div></div>';
+    }).join('')+'</div>';
+  const reviewHTML=(p.interviewReviews||[]).length===0
+    ?'<div class="empty"><div class="empty-icon">🔄</div><div class="empty-text">暂无面试复盘</div></div>'
+    :'<div class="card-grid">'+p.interviewReviews.map(r=>{
+      return '<div class="file-card" data-action="view-position-item" data-position-id="'+p.id+'" data-type="interviewReviews" data-item-id="'+r.id+'">'
+        +'<div class="card-top"><div class="card-icon bg-green">🔄</div><div><div class="card-name">'+escapeHtml(r.title)+'</div></div></div>'
+        +'<div class="card-footer"><span class="card-meta">点击查看</span>'
+        +'<div class="card-actions"><button class="icon-btn danger" data-action="delete-position-item" data-position-id="'+p.id+'" data-type="interviewReviews" data-item-id="'+r.id+'">🗑</button></div></div></div>';
     }).join('')+'</div>';
   return '<button class="btn-back" data-action="navigate" data-view="optimization">← 返回岗位列表</button>'
     +'<div class="detail-head"><h1>📁 '+escapeHtml(p.name)+'</h1>'
     +'<div class="tags">'+(p.company?'<span class="badge badge-blue">'+escapeHtml(p.company)+'</span>':'')+'</div></div>'
-    +'<div class="section"><div class="section-head"><h2>📋 岗位JD</h2><button class="btn btn-sm btn-primary" data-action="add-position-item" data-position-id="'+p.id+'" data-type="jdList">+ 添加JD</button></div>'+jdHTML+'</div>'
-    +'<div class="section"><div class="section-head"><h2>📝 面试准备稿件</h2><button class="btn btn-sm btn-primary" data-action="add-position-item" data-position-id="'+p.id+'" data-type="prepNotes">+ 添加稿件</button></div>'+noteHTML+'</div>';
+    +'<div class="section"><div class="section-head"><h2>📋 岗位JD</h2><div><button class="btn btn-sm btn-secondary" data-action="upload-position-item" data-position-id="'+p.id+'" data-type="jdList">上传文件</button> <button class="btn btn-sm btn-primary" data-action="add-position-item" data-position-id="'+p.id+'" data-type="jdList">+ 添加JD</button></div></div>'+jdHTML+'</div>'
+    +'<div class="section"><div class="section-head"><h2>📝 面试准备稿件</h2><div><button class="btn btn-sm btn-secondary" data-action="upload-position-item" data-position-id="'+p.id+'" data-type="prepNotes">上传文件</button> <button class="btn btn-sm btn-primary" data-action="add-position-item" data-position-id="'+p.id+'" data-type="prepNotes">+ 添加稿件</button></div></div>'+noteHTML+'</div>'
+    +'<div class="section"><div class="section-head"><h2>🔄 面试复盘</h2><button class="btn btn-sm btn-primary" data-action="add-interview-review" data-position-id="'+p.id+'">+ 添加复盘</button></div>'+reviewHTML+'</div>';
 }
 
 /* ========== 收入 ========== */
@@ -1233,6 +1282,7 @@ function renderExpenses(){
     +'<div><div class="balance-mini-label">支出</div><div class="balance-mini-val">'+formatMoney(monthTotal)+'</div></div></div></div>'
     +'<div class="budget-card"><div class="budget-head"><span>🐽 本月预算</span><span class="budget-unset">未设置预算</span></div><div class="budget-bar"><div class="budget-used"></div></div><div class="card-meta">已用 '+formatMoney(monthTotal)+'</div></div>'
     +'<div class="money-actions"><button class="money-action expense" data-action="add-expense">－ 记支出</button><button class="money-action income" data-action="add-income">＋ 记收入</button></div>'
+    +renderExpenseCalendar()
     +'<div class="section"><div class="section-head"><h2>📝 快捷分类</h2></div>'+quickHTML+'</div>'
     +'<div class="section"><div class="section-head"><h2>支出明细</h2><span class="kitty-chip">总支出 '+formatMoney(total)+' · '+expenses.length+' 笔</span></div>'+tableHTML+'</div>';
 }
@@ -1322,6 +1372,20 @@ function openViewModal(type,item,parent){
   modalCtx={type,mode:'view',id:item.id,parent,item};
   const fileBlock=item.file_url?'<div class="view-meta"><a class="file-open" href="'+escapeHtml(item.file_url)+'" target="_blank" rel="noopener">📎 打开完整文件</a>'
     +(item.file_name?'<span class="file-meta">'+escapeHtml(item.file_name)+' '+bytesToSize(item.file_size)+'</span>':'')+'</div>':'';
+
+  // 面试复盘特殊展示
+  if(parent&&parent.type==='interviewReviews'){
+    let parsed={questions:'',answer:'',improvement:''};
+    try{ parsed=JSON.parse(item.content||'{}'); }catch(e){}
+    const body='<div class="review-section"><div class="review-label">❓ 被问到的问题</div><div class="review-content">'+(parsed.questions?escapeHtml(parsed.questions):'<span style="color:var(--text-secondary)">暂无</span>')+'</div></div>'
+      +'<div class="review-section"><div class="review-label">💬 我的回答 & 复盘</div><div class="review-content">'+(parsed.answer?escapeHtml(parsed.answer):'<span style="color:var(--text-secondary)">暂无</span>')+'</div></div>'
+      +'<div class="review-section"><div class="review-label">🚀 以后如何优化</div><div class="review-content">'+(parsed.improvement?escapeHtml(parsed.improvement):'<span style="color:var(--text-secondary)">暂无</span>')+'</div></div>';
+    openModal('<div class="modal-head"><h3>'+escapeHtml(item.title)+'</h3><button class="modal-close" data-action="close-modal">×</button></div>'
+      +'<div class="modal-body">'+body+'</div>'
+      +'<div class="modal-foot"><button class="btn btn-danger" data-action="delete-from-view">删除</button><button class="btn btn-primary" data-action="edit-from-view">编辑</button></div>');
+    return;
+  }
+
   const content=(item.content?escapeHtml(item.content):'<span style="color:var(--text-secondary)">暂无文字内容</span>');
   openModal('<div class="modal-head"><h3>'+escapeHtml(item.title)+'</h3><button class="modal-close" data-action="close-modal">×</button></div>'
     +'<div class="modal-body">'+fileBlock+'<div class="view-content">'+content+'</div></div>'
@@ -1349,6 +1413,34 @@ function openTrainingUploadModal(){
     +'</form></div><div class="modal-foot"><button class="btn btn-secondary" data-action="close-modal">取消</button><button class="btn btn-primary" data-action="submit-form">开始上传</button></div>');
 }
 
+function openPositionItemUploadModal(positionId,type){
+  const label=type==='jdList'?'JD文件':'面试准备稿件文件';
+  modalCtx={type:'upload-position-item',mode:'add',parent:{positionId,type}};
+  openModal('<div class="modal-head"><h3>上传'+label+'</h3><button class="modal-close" data-action="close-modal">×</button></div>'
+    +'<div class="modal-body"><form id="modalForm" onsubmit="return false">'
+    +'<div class="upload-note">可以上传 Word、PDF、图片等文件，上传后电脑和手机都能查看。</div>'
+    +'<div class="form-group"><label>文件标题（选填）</label><input type="text" name="title" placeholder="不填则使用文件名"></div>'
+    +'<div class="form-group"><label>选择文件</label><input type="file" name="files" multiple required></div>'
+    +'</form></div><div class="modal-foot"><button class="btn btn-secondary" data-action="close-modal">取消</button><button class="btn btn-primary" data-action="submit-form">开始上传</button></div>');
+}
+
+function openInterviewReviewModal(positionId,mode,data){
+  data=data||{};
+  const isEdit=mode==='edit';
+  modalCtx={type:'interview-review',mode,id:data.id,parent:{positionId},item:data};
+  const hasSR=!!(window.SpeechRecognition||window.webkitSpeechRecognition);
+  openModal('<div class="modal-head"><h3>'+(isEdit?'编辑面试复盘':'添加面试复盘')+'</h3><button class="modal-close" data-action="close-modal">×</button></div>'
+    +'<div class="modal-body"><form id="modalForm" onsubmit="return false">'
+    +'<div class="form-group"><label>复盘标题</label><input type="text" name="title" required value="'+escapeHtml(data.title||'')+'" placeholder="如：XX公司一面复盘"></div>'
+    +'<div class="form-group"><label>被问到的问题</label><div class="voice-area-wrap"><textarea name="questions" rows="4" placeholder="口述或输入面试中被问到的问题...">'+escapeHtml(data.questions||'')+'</textarea>'
+    +(hasSR?'<button type="button" class="btn btn-sm voice-btn" data-action="voice-dictate" data-target="questions">🎤 口述</button>':'')+'</div></div>'
+    +'<div class="form-group"><label>我的回答 & 复盘</label><div class="voice-area-wrap"><textarea name="answer" rows="4" placeholder="口述或输入你的回答和现场表现...">'+escapeHtml(data.answer||'')+'</textarea>'
+    +(hasSR?'<button type="button" class="btn btn-sm voice-btn" data-action="voice-dictate" data-target="answer">🎤 口述</button>':'')+'</div></div>'
+    +'<div class="form-group"><label>以后如何优化</label><div class="voice-area-wrap"><textarea name="improvement" rows="4" placeholder="口述或输入以后的改进方向...">'+escapeHtml(data.improvement||'')+'</textarea>'
+    +(hasSR?'<button type="button" class="btn btn-sm voice-btn" data-action="voice-dictate" data-target="improvement">🎤 口述</button>':'')+'</div></div>'
+    +'</form></div><div class="modal-foot"><button class="btn btn-secondary" data-action="close-modal">取消</button><button class="btn btn-primary" data-action="submit-form">'+(isEdit?'保存修改':'确定添加')+'</button></div>');
+}
+
 function openTaskDateModal(date){
   const list=(state.data?.tasks||[]).filter(t=>t.deadline===date).sort((a,b)=>Number(a.completed)-Number(b.completed));
   const body=list.length?'<div class="task-list">'+list.map(t=>'<div class="task-item '+(t.completed?'completed':'')+'">'
@@ -1366,6 +1458,16 @@ function openIncomeDateModal(date){
     +list.map(i=>'<tr><td>'+escapeHtml(i.time)+'</td><td class="amount">'+formatMoney(i.amount)+'</td><td>'+escapeHtml(i.hours||'')+'</td><td>'+escapeHtml(i.note||'')+'</td></tr>').join('')+'</tbody></table></div>'
     :'<div class="empty"><div class="empty-icon">💗</div><div class="empty-text">这一天暂无收入记录</div></div>';
   openModal('<div class="modal-head"><h3>'+escapeHtml(date)+' 的收入</h3><button class="modal-close" data-action="close-modal">×</button></div><div class="modal-body">'+body+'</div>');
+}
+
+function openExpenseDateModal(date){
+  const list=(state.data?.expenses||[]).filter(i=>i.date===date).sort((a,b)=>b.time.localeCompare(a.time));
+  const total=list.reduce((s,i)=>s+parseFloat(i.amount),0);
+  const body=list.length?'<div class="view-meta"><span class="kitty-chip">当天支出 -'+formatMoney(total).replace('¥','¥')+'</span><span class="kitty-chip">'+list.length+' 笔记录</span></div>'
+    +'<div class="table-wrap"><table><thead><tr><th>时间</th><th>金额</th><th>分类</th><th>备注</th></tr></thead><tbody>'
+    +list.map(i=>'<tr><td>'+escapeHtml(i.time)+'</td><td class="amount">-'+formatMoney(i.amount)+'</td><td>'+escapeHtml(i.category||'其他')+'</td><td>'+escapeHtml(i.note||'')+'</td></tr>').join('')+'</tbody></table></div>'
+    :'<div class="empty"><div class="empty-icon">🧾</div><div class="empty-text">这一天暂无支出记录</div></div>';
+  openModal('<div class="modal-head"><h3>'+escapeHtml(date)+' 的支出</h3><button class="modal-close" data-action="close-modal">×</button></div><div class="modal-body">'+body+'</div>');
 }
 
 function normalizeUploadFileName(name){
@@ -1491,6 +1593,86 @@ async function uploadTrainingFiles(data){
   }
 }
 
+async function uploadPositionItemFiles(parent,data){
+  const input=document.querySelector('#modalForm input[name="files"]');
+  const files=[...(input?.files||[])];
+  if(files.length===0){ showToast('请先选择文件'); return; }
+  if(!useCloud){ showToast('文件同步需要云同步模式'); return; }
+  setLoading(true);
+  try{
+    for(const file of files){
+      const uploaded=await uploadFileToCloud(file,{
+        primaryBucket:WORKBENCH_FILE_BUCKET,
+        primaryPrefix:'positions/'+parent.positionId+'/'+parent.type,
+        fallbackBucket:STUDENT_FILE_BUCKET,
+        fallbackPrefix:'positions/'+parent.positionId+'/'+parent.type
+      });
+      const {error:dbErr}=await supabaseClient.from('position_items').insert({
+        position_id:parent.positionId,
+        title:data.title||file.name,
+        content:'',
+        type:parent.type,
+        file_name:file.name,
+        file_path:uploaded.bucket+'/'+uploaded.path,
+        file_url:uploaded.publicUrl,
+        mime_type:file.type||'application/octet-stream',
+        file_size:file.size
+      });
+      if(dbErr) throw new Error('文件已上传，但记录保存失败：'+dbErr.message);
+    }
+    await loadData();
+    closeModal(); render(); showToast('文件已上传并同步 ✓');
+  }catch(err){
+    console.error(err);
+    showToast('上传失败: '+(err.message||err));
+  }finally{
+    setLoading(false);
+  }
+}
+
+/* ========== 语音口述 ========== */
+let voiceRecognition=null;
+let voiceTarget='';
+function toggleVoiceDictation(targetName){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){ showToast('当前浏览器不支持语音识别'); return; }
+  if(voiceRecognition&&voiceRecognition.isRecognizing){
+    voiceRecognition.stop();
+    voiceRecognition.isRecognizing=false;
+    return;
+  }
+  voiceRecognition=new SR();
+  voiceRecognition.lang='zh-CN';
+  voiceRecognition.continuous=true;
+  voiceRecognition.interimResults=true;
+  voiceTarget=targetName;
+  const textarea=document.querySelector('#modalForm textarea[name="'+targetName+'"]');
+  if(!textarea) return;
+  const btn=document.querySelector('[data-action="voice-dictate"][data-target="'+targetName+'"]');
+  const baseText=textarea.value;
+  voiceRecognition.onresult=function(e){
+    let interim='';
+    let finalText=baseText;
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal){ finalText+=e.results[i][0].transcript; }
+      else{ interim+=e.results[i][0].transcript; }
+    }
+    textarea.value=finalText+interim;
+  };
+  voiceRecognition.onerror=function(e){
+    showToast('语音识别出错: '+e.error);
+    if(btn){ btn.textContent='🎤 口述'; btn.classList.remove('recording'); }
+    voiceRecognition.isRecognizing=false;
+  };
+  voiceRecognition.onend=function(){
+    if(btn){ btn.textContent='🎤 口述'; btn.classList.remove('recording'); }
+    voiceRecognition.isRecognizing=false;
+  };
+  voiceRecognition.start();
+  voiceRecognition.isRecognizing=true;
+  if(btn){ btn.textContent='⏹ 停止'; btn.classList.add('recording'); }
+}
+
 /* ========== 表单提交 ========== */
 async function submitForm(){
   const form=document.getElementById('modalForm');
@@ -1507,6 +1689,53 @@ async function submitForm(){
   }
   if(type==='upload-training-file'){
     await uploadTrainingFiles(data);
+    return;
+  }
+  if(type==='upload-position-item'){
+    await uploadPositionItemFiles(parent,data);
+    return;
+  }
+
+  // 面试复盘：组合内容
+  if(type==='interview-review'){
+    const reviewData={
+      title:data.title,
+      content:JSON.stringify({
+        questions:data.questions||'',
+        answer:data.answer||'',
+        improvement:data.improvement||''
+      })
+    };
+    if(!useCloud){
+      const p=state.data.positions.find(x=>x.id===parent.positionId);
+      if(p){
+        if(!p.interviewReviews) p.interviewReviews=[];
+        if(mode==='add'){ p.interviewReviews.push({id:Date.now().toString(),...reviewData}); }
+        else { const item=p.interviewReviews.find(i=>i.id===id); if(item) Object.assign(item,reviewData); }
+      }
+      saveDataLocal();
+      closeModal(); render(); showToast(mode==='add'?'添加成功 ✓':'更新成功 ✓');
+      return;
+    }
+    if(mode==='add'){
+      const {error:e}=await supabaseClient.from('position_items').insert({
+        position_id:parent.positionId,
+        title:reviewData.title,
+        content:reviewData.content,
+        type:'interviewReviews'
+      });
+      error=e;
+    }else{
+      const {error:e}=await supabaseClient.from('position_items').update({
+        title:reviewData.title,
+        content:reviewData.content
+      }).eq('id',id);
+      error=e;
+    }
+    if(error){ showToast('保存失败: '+error.message); return; }
+    await loadData();
+    closeModal(); render();
+    showToast(mode==='add'?'添加成功 ✓':'更新成功 ✓');
     return;
   }
 
@@ -1527,7 +1756,7 @@ async function submitForm(){
         if(mode==='add'){ const s=state.data.students.find(x=>x.id===parent.studentId); if(s) s[parent.type].push({id:Date.now().toString(),...data}); }
         else { const s=state.data.students.find(x=>x.id===parent.studentId); if(s){ const item=s[parent.type].find(i=>i.id===id); if(item) Object.assign(item,data); } }
         break;
-      case 'position': state.data.positions.push({id:Date.now().toString(),...data,jdList:[],prepNotes:[]}); break;
+      case 'position': state.data.positions.push({id:Date.now().toString(),...data,jdList:[],prepNotes:[],interviewReviews:[]}); break;
       case 'position-item':
         if(mode==='add'){ const p=state.data.positions.find(x=>x.id===parent.positionId); if(p) p[parent.type].push({id:Date.now().toString(),...data}); }
         else { const p=state.data.positions.find(x=>x.id===parent.positionId); if(p){ const item=p[parent.type].find(i=>i.id===id); if(item) Object.assign(item,data); } }
@@ -1743,6 +1972,7 @@ document.addEventListener('click',async function(e){
     case 'submit-form': await submitForm(); break;
     case 'view-task-date': openTaskDateModal(d.date); break;
     case 'view-income-date': openIncomeDateModal(d.date); break;
+    case 'view-expense-date': openExpenseDateModal(d.date); break;
     case 'favorite-recommend': await favoriteRecommend(d.source,d.index); break;
     case 'cal-task-prev': state.calOffsetTask--; render(); break;
     case 'cal-task-next': state.calOffsetTask++; render(); break;
@@ -1750,6 +1980,9 @@ document.addEventListener('click',async function(e){
     case 'cal-income-prev': state.calOffsetIncome--; render(); break;
     case 'cal-income-next': state.calOffsetIncome++; render(); break;
     case 'cal-income-reset': state.calOffsetIncome=0; render(); break;
+    case 'cal-expense-prev': state.calOffsetExpense--; render(); break;
+    case 'cal-expense-next': state.calOffsetExpense++; render(); break;
+    case 'cal-expense-reset': state.calOffsetExpense=0; render(); break;
 
     case 'add-task': openFormModal('task','add'); break;
     case 'edit-task': { const t=(state.data?.tasks||[]).find(x=>x.id===d.id); if(t) openFormModal('task','edit',t); break; }
@@ -1777,8 +2010,11 @@ document.addEventListener('click',async function(e){
     case 'delete-position': if(confirm('确定删除此岗位及其所有资料？')) await deletePosition(d.id); break;
 
     case 'add-position-item': openFormModal('position-item','add',null,{positionId:d.positionId,type:d.type}); break;
+    case 'upload-position-item': openPositionItemUploadModal(d.positionId,d.type); break;
+    case 'add-interview-review': openInterviewReviewModal(d.positionId,'add'); break;
     case 'view-position-item': { const p=(state.data?.positions||[]).find(x=>x.id===d.positionId); if(p){ const item=p[d.type].find(i=>i.id===d.itemId); if(item) openViewModal('position-item',item,{positionId:d.positionId,type:d.type}); } break; }
     case 'delete-position-item': if(confirm('确定删除？')) await deletePositionItem(d.positionId,d.type,d.itemId); break;
+    case 'voice-dictate': e.preventDefault(); toggleVoiceDictation(d.target); break;
 
     case 'add-income': openFormModal('income','add'); break;
     case 'delete-income': if(confirm('确定删除此记录？')) await deleteIncome(d.id); break;
@@ -1810,7 +2046,18 @@ document.addEventListener('click',async function(e){
       break;
     }
 
-    case 'edit-from-view': { const ctx=modalCtx; closeModal(); openFormModal(ctx.type,'edit',ctx.item,ctx.parent); break; }
+    case 'edit-from-view': {
+      const ctx=modalCtx;
+      closeModal();
+      if(ctx.parent&&ctx.parent.type==='interviewReviews'){
+        let parsed={questions:'',answer:'',improvement:''};
+        try{ parsed=JSON.parse(ctx.item.content||'{}'); }catch(e){}
+        openInterviewReviewModal(ctx.parent.positionId,'edit',{id:ctx.item.id,title:ctx.item.title,questions:parsed.questions,answer:parsed.answer,improvement:parsed.improvement});
+      }else{
+        openFormModal(ctx.type,'edit',ctx.item,ctx.parent);
+      }
+      break;
+    }
     case 'delete-from-view': {
       if(!confirm('确定删除？')) break;
       const {type,item,parent}=modalCtx;
