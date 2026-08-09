@@ -179,6 +179,7 @@ a{text-decoration:none;color:inherit}
 .task-deadline{font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:4px}
 .task-deadline.overdue-text{color:var(--danger);font-weight:600}
 .task-deadline.today-text{color:var(--primary);font-weight:600}
+.task-deadline.completed-text{color:var(--success);font-weight:600}
 
 .badge{display:inline-flex;align-items:center;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:600}
 .badge-blue{background:var(--blue-light);color:var(--blue)}
@@ -1028,12 +1029,14 @@ function renderToday(){
       const cls=t.completed?'completed':overdue?'overdue':todayDl?'today-task':'upcoming';
       const dateParts=taskDateParts(t.deadline);
       const catBadge=CATEGORY_COLORS[t.category]||'badge-blue';
+      const deadlineLabel=t.completed?'已完成':dateParts.sub;
+      const deadlineCls=t.completed?'completed-text':overdue?'overdue-text':todayDl?'today-text':'';
       return '<div class="task-item '+cls+'">'
         +'<div class="task-check" data-action="toggle-task" data-id="'+t.id+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>'
-        +'<div class="task-date-card"><div class="task-date-main">'+escapeHtml(dateParts.main)+'</div><div class="task-date-sub">'+escapeHtml(dateParts.sub)+'</div></div>'
+        +'<div class="task-date-card"><div class="task-date-main">'+escapeHtml(dateParts.main)+'</div><div class="task-date-sub">'+escapeHtml(deadlineLabel)+'</div></div>'
         +'<div class="task-body"><div class="task-work-line">'+(t.schedule_time?'<span class="task-time">'+escapeHtml(t.schedule_time)+'</span>':'')+'<span class="task-content">'+escapeHtml(t.title)+'</span></div>'
         +'<div class="task-meta"><span class="badge '+catBadge+'">'+(CATEGORY_ICONS[t.category]||'')+' '+escapeHtml(t.category)+'</span>'
-        +'<span class="task-deadline '+(overdue?'overdue-text':todayDl?'today-text':'')+'">⏰ '+escapeHtml(dateParts.sub)+' · '+formatDate(t.deadline)+'</span></div></div>'
+        +'<span class="task-deadline '+deadlineCls+'">⏰ '+escapeHtml(deadlineLabel)+' · '+formatDate(t.deadline)+'</span></div></div>'
         +'<div class="task-actions"><button class="icon-btn" data-action="edit-task" data-id="'+t.id+'" title="编辑">✏️</button>'
         +'<button class="icon-btn danger" data-action="delete-task" data-id="'+t.id+'" title="删除">🗑</button></div></div>';
     }).join('')+'</div>';
@@ -1233,13 +1236,13 @@ function renderIncome(){
     tableHTML='<div class="empty"><div class="empty-icon">💰</div><div class="empty-text">暂无收入记录</div></div>';
   }else{
     const sorted=[...income].sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
-    tableHTML='<div class="table-wrap"><table><thead><tr><th>日期</th><th>时间</th><th>金额</th><th>课时</th><th>备注</th><th></th></tr></thead><tbody>'
+    tableHTML='<div class="table-wrap"><table><thead><tr><th>日期</th><th>时间</th><th>金额</th><th>课时</th><th>备注</th><th>操作</th></tr></thead><tbody>'
       +sorted.map(i=>{
         return '<tr><td>'+escapeHtml(i.date)+'</td><td>'+escapeHtml(i.time)+'</td>'
           +'<td class="amount">'+formatMoney(i.amount)+'</td>'
           +'<td>'+escapeHtml(i.hours||'')+'</td>'
           +'<td>'+escapeHtml(i.note||'')+'</td>'
-          +'<td><button class="icon-btn danger" data-action="delete-income" data-id="'+i.id+'">🗑</button></td></tr>';
+          +'<td><button class="icon-btn" data-action="edit-income" data-id="'+i.id+'">✏️</button> <button class="icon-btn danger" data-action="delete-income" data-id="'+i.id+'">🗑</button></td></tr>';
       }).join('')+'</tbody></table></div>';
   }
 
@@ -1272,8 +1275,8 @@ function renderExpenses(){
     tableHTML='<div class="empty"><div class="empty-icon">🧾</div><div class="empty-text">暂无支出记录</div></div>';
   }else{
     const sorted=[...expenses].sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
-    tableHTML='<div class="table-wrap"><table><thead><tr><th>日期</th><th>时间</th><th>金额</th><th>分类</th><th>备注</th><th></th></tr></thead><tbody>'
-      +sorted.map(i=>'<tr><td>'+escapeHtml(i.date)+'</td><td>'+escapeHtml(i.time)+'</td><td class="amount">'+formatMoney(i.amount)+'</td><td>'+escapeHtml(i.category||'其他')+'</td><td>'+escapeHtml(i.note||'')+'</td><td><button class="icon-btn danger" data-action="delete-expense" data-id="'+i.id+'">🗑</button></td></tr>').join('')
+    tableHTML='<div class="table-wrap"><table><thead><tr><th>日期</th><th>时间</th><th>金额</th><th>分类</th><th>备注</th><th>操作</th></tr></thead><tbody>'
+      +sorted.map(i=>'<tr><td>'+escapeHtml(i.date)+'</td><td>'+escapeHtml(i.time)+'</td><td class="amount">'+formatMoney(i.amount)+'</td><td>'+escapeHtml(i.category||'其他')+'</td><td>'+escapeHtml(i.note||'')+'</td><td><button class="icon-btn" data-action="edit-expense" data-id="'+i.id+'">✏️</button> <button class="icon-btn danger" data-action="delete-expense" data-id="'+i.id+'">🗑</button></td></tr>').join('')
       +'</tbody></table></div>';
   }
   return '<div class="page-head"><div><h1>🧾 支出</h1><div class="subtitle">账本首页 · 收入支出同步统计</div></div></div>'
@@ -1344,7 +1347,7 @@ function openFormModal(type,mode,data,parent){
         +'<div class="form-group"><label>内容</label><textarea name="content" rows="12" placeholder="输入内容...">'+escapeHtml(data.content||'')+'</textarea></div>';
       break;
     case 'income':
-      title='记录收入';
+      title=isEdit?'编辑收入':'记录收入';
       body='<div class="form-row"><div class="form-group"><label>日期</label><input type="date" name="date" required value="'+(data.date||todayStr())+'"></div>'
         +'<div class="form-group"><label>时间</label><input type="time" name="time" required value="'+(data.time||nowTimeStr())+'"></div></div>'
         +'<div class="form-row"><div class="form-group"><label>金额（元）</label><input type="number" name="amount" required min="0" step="0.01" value="'+(data.amount||'')+'" placeholder="输入金额"></div>'
@@ -1352,7 +1355,7 @@ function openFormModal(type,mode,data,parent){
         +'<div class="form-group"><label>备注</label><input type="text" name="note" value="'+escapeHtml(data.note||'')+'" placeholder="如：王小明数学辅导"></div>';
       break;
     case 'expense':
-      title='记录支出';
+      title=isEdit?'编辑支出':'记录支出';
       body='<div class="form-row"><div class="form-group"><label>日期</label><input type="date" name="date" required value="'+(data.date||todayStr())+'"></div>'
         +'<div class="form-group"><label>时间</label><input type="time" name="time" required value="'+(data.time||nowTimeStr())+'"></div></div>'
         +'<div class="form-row"><div class="form-group"><label>金额（元）</label><input type="number" name="amount" required min="0" step="0.01" value="'+(data.amount||'')+'" placeholder="输入金额"></div>'
@@ -1761,8 +1764,14 @@ async function submitForm(){
         if(mode==='add'){ const p=state.data.positions.find(x=>x.id===parent.positionId); if(p) p[parent.type].push({id:Date.now().toString(),...data}); }
         else { const p=state.data.positions.find(x=>x.id===parent.positionId); if(p){ const item=p[parent.type].find(i=>i.id===id); if(item) Object.assign(item,data); } }
         break;
-      case 'income': state.data.income.push({id:Date.now().toString(),...data}); break;
-      case 'expense': state.data.expenses.push({id:Date.now().toString(),...data}); break;
+      case 'income':
+        if(mode==='add') state.data.income.push({id:Date.now().toString(),...data});
+        else Object.assign(state.data.income.find(i=>i.id===id)||{},data);
+        break;
+      case 'expense':
+        if(mode==='add') state.data.expenses.push({id:Date.now().toString(),...data});
+        else Object.assign(state.data.expenses.find(i=>i.id===id)||{},data);
+        break;
     }
     saveDataLocal();
     closeModal(); render(); showToast(mode==='add'?'添加成功 ✓':'更新成功 ✓');
@@ -1790,8 +1799,14 @@ async function submitForm(){
       if(mode==='add'){ const {error:e}=await supabaseClient.from('position_items').insert({position_id:parent.positionId,...data,type:parent.type}); error=e; }
       else { const {error:e}=await supabaseClient.from('position_items').update({title:data.title,content:data.content}).eq('id',id); error=e; }
       break;
-    case 'income': { const {error:e}=await supabaseClient.from('income').insert({...data,amount:parseFloat(data.amount)}); error=e; break; }
-    case 'expense': { const {error:e}=await supabaseClient.from('expenses').insert({...data,amount:parseFloat(data.amount)}); error=e; break; }
+    case 'income':
+      if(mode==='add'){ const {error:e}=await supabaseClient.from('income').insert({...data,amount:parseFloat(data.amount)}); error=e; }
+      else { const {error:e}=await supabaseClient.from('income').update({...data,amount:parseFloat(data.amount)}).eq('id',id); error=e; }
+      break;
+    case 'expense':
+      if(mode==='add'){ const {error:e}=await supabaseClient.from('expenses').insert({...data,amount:parseFloat(data.amount)}); error=e; }
+      else { const {error:e}=await supabaseClient.from('expenses').update({...data,amount:parseFloat(data.amount)}).eq('id',id); error=e; }
+      break;
   }
 
   if(error){ showToast('保存失败: '+error.message); return; }
@@ -2017,10 +2032,12 @@ document.addEventListener('click',async function(e){
     case 'voice-dictate': e.preventDefault(); toggleVoiceDictation(d.target); break;
 
     case 'add-income': openFormModal('income','add'); break;
+    case 'edit-income': { const i=(state.data?.income||[]).find(x=>x.id===d.id); if(i) openFormModal('income','edit',i); break; }
     case 'delete-income': if(confirm('确定删除此记录？')) await deleteIncome(d.id); break;
 
     case 'add-expense': openFormModal('expense','add'); break;
     case 'quick-expense': openFormModal('expense','add',{category:d.category}); break;
+    case 'edit-expense': { const i=(state.data?.expenses||[]).find(x=>x.id===d.id); if(i) openFormModal('expense','edit',i); break; }
     case 'delete-expense': if(confirm('确定删除此支出？')) await deleteExpense(d.id); break;
 
     case 'backup-now': backupToLocalStorage(); showToast('已备份到本地 ✓'); render(); break;
