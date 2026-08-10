@@ -237,6 +237,18 @@ a{text-decoration:none;color:inherit}
 
 /* ===== 收入 ===== */
 .income-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:24px}
+/* 月份折叠组 */
+.month-group{margin-bottom:12px;border-radius:12px;overflow:hidden;border:1px solid var(--border)}
+.month-group-header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--bg);cursor:pointer;user-select:none;font-size:14px;font-weight:600}
+.month-group-header:hover{background:var(--primary-light)}
+.month-group-arrow{transition:transform .2s;font-size:12px;color:var(--text-secondary)}
+.month-group.collapsed .month-group-arrow{transform:rotate(-90deg)}
+.month-group-body{transition:all .3s}
+.month-group.collapsed .month-group-body{display:none}
+/* 日期两行显示 */
+.date-cell{line-height:1.3}
+.date-cell .date-year{display:block;font-size:12px;color:var(--text-secondary)}
+.date-cell .date-md{display:block;font-size:14px;font-weight:500}
 .income-chart-box{background:var(--card);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);margin-bottom:24px}
 .income-chart-box h3{font-size:15px;font-weight:600;margin-bottom:16px}
 .chart-bars{display:flex;align-items:flex-end;gap:12px;height:160px;padding-bottom:28px;position:relative}
@@ -438,10 +450,10 @@ tr:hover td{background:#fafbfc}
   .icon-btn{width:28px;height:28px;font-size:13px}
   /* 收入支出页面防溢出 */
   .stat-card{min-width:0}
-  .stat-card .stat-info{min-width:0;flex:1}
-  .stat-card .stat-info .stat-val{word-break:break-all}
-  .stat-card .stat-icon{width:36px;height:36px;font-size:18px}
-  .balance-val{word-break:break-all}
+  .stat-card .stat-info{min-width:0;flex:1;overflow:hidden}
+  .stat-card .stat-info .stat-val{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:18px}
+  .stat-card .stat-icon{width:36px;height:36px;font-size:18px;flex-shrink:0}
+  .balance-val{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .section-head{flex-wrap:wrap;gap:6px}
   .modal{max-width:calc(100vw - 20px);overflow-x:hidden}
   .modal-body{padding:16px;overflow-x:hidden}
@@ -450,6 +462,10 @@ tr:hover td{background:#fafbfc}
 @media(max-width:420px){
   .main{padding:14px 8px}
   .calendar-box{padding:8px}
+  .income-summary{grid-template-columns:1fr 1fr;gap:8px}
+  .stat-card{padding:12px;gap:8px}
+  .stat-card .stat-icon{width:30px;height:30px;font-size:15px}
+  .stat-card .stat-info .stat-val{font-size:15px}
   .calendar-grid{gap:2px}
   .calendar-day{min-height:44px;padding:3px;border-radius:9px}
   .calendar-date{font-size:11px}
@@ -626,6 +642,20 @@ function greeting(){ const h=new Date().getHours(); if(h<6)return '夜深了'; i
 function isOverdue(t){ if(t.completed)return false; const today=new Date(); today.setHours(0,0,0,0); const dl=new Date(t.deadline); dl.setHours(0,0,0,0); return dl<today; }
 function isTodayDeadline(s){ return s===todayStr(); }
 function monthKey(s){ return s?s.substring(0,7):''; }
+function dateTwoLine(s){
+  if(!s)return '<span class="date-cell"><span class="date-md">-</span></span>';
+  const parts=s.split('-');
+  if(parts.length>=3){
+    return '<span class="date-cell"><span class="date-year">'+escapeHtml(parts[0])+'</span><span class="date-md">'+escapeHtml(parts[1]+'-'+parts[2])+'</span></span>';
+  }
+  return '<span class="date-cell"><span class="date-md">'+escapeHtml(s)+'</span></span>';
+}
+function monthLabel(mk){
+  if(!mk)return '未知月份';
+  const parts=mk.split('-');
+  const mnames=['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
+  return parts[0]+'年'+(mnames[parseInt(parts[1])-1]||parts[1]+'月');
+}
 function bytesToSize(bytes){ if(!bytes)return ''; const units=['B','KB','MB','GB']; let n=Number(bytes),i=0; while(n>=1024&&i<units.length-1){n/=1024;i++;} return (i?n.toFixed(1):n.toFixed(0))+units[i]; }
 function dailyItems(items){
   const d=new Date(); const seed=d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate();
@@ -1257,14 +1287,27 @@ function renderIncome(){
     tableHTML='<div class="empty"><div class="empty-icon">💰</div><div class="empty-text">暂无收入记录</div></div>';
   }else{
     const sorted=[...income].sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
-    tableHTML='<div class="table-wrap"><table><thead><tr><th>日期</th><th>金额</th><th>课时</th><th>备注</th><th>操作</th></tr></thead><tbody>'
-      +sorted.map(i=>{
-        return '<tr><td data-label="日期">'+escapeHtml(i.date)+'</td>'
-          +'<td data-label="金额" class="amount col-amount">'+formatMoney(i.amount)+'</td>'
-          +'<td data-label="课时">'+escapeHtml(i.hours||'')+'</td>'
-          +'<td data-label="备注" class="col-note">'+escapeHtml(i.note||'')+'</td>'
-          +'<td data-label="" class="col-actions"><button class="icon-btn" data-action="edit-income" data-id="'+i.id+'">✏️</button> <button class="icon-btn danger" data-action="delete-income" data-id="'+i.id+'">🗑</button></td></tr>';
-      }).join('')+'</tbody></table></div>';
+    const curMonth=monthKey(todayStr());
+    const groups={};
+    sorted.forEach(i=>{ const mk=monthKey(i.date); if(!groups[mk])groups[mk]=[]; groups[mk].push(i); });
+    const monthKeys=Object.keys(groups).sort((a,b)=>b.localeCompare(a));
+    tableHTML=monthKeys.map(mk=>{
+      const items=groups[mk];
+      const mTotal=items.reduce((s,i)=>s+parseFloat(i.amount),0);
+      const isCur=mk===curMonth;
+      return '<div class="month-group'+(isCur?'':' collapsed')+'" data-month="'+mk+'">'
+        +'<div class="month-group-header" data-action="toggle-month">'
+        +'<span>'+monthLabel(mk)+' · '+items.length+'笔 · '+formatMoney(mTotal)+'</span>'
+        +'<span class="month-group-arrow">▼</span></div>'
+        +'<div class="month-group-body"><div class="table-wrap"><table><thead><tr><th>日期</th><th>金额</th><th>课时</th><th>备注</th><th>操作</th></tr></thead><tbody>'
+        +items.map(i=>{
+          return '<tr><td data-label="日期">'+dateTwoLine(i.date)+'</td>'
+            +'<td data-label="金额" class="amount col-amount">'+formatMoney(i.amount)+'</td>'
+            +'<td data-label="课时">'+escapeHtml(i.hours||'')+'</td>'
+            +'<td data-label="备注" class="col-note">'+escapeHtml(i.note||'')+'</td>'
+            +'<td data-label="" class="col-actions"><button class="icon-btn" data-action="edit-income" data-id="'+i.id+'">✏️</button> <button class="icon-btn danger" data-action="delete-income" data-id="'+i.id+'">🗑</button></td></tr>';
+        }).join('')+'</tbody></table></div></div></div>';
+    }).join('');
   }
 
   return '<div class="page-head"><div><h1>💰 收入记录</h1><div class="subtitle">记录每一笔收入</div></div>'
@@ -1296,9 +1339,22 @@ function renderExpenses(){
     tableHTML='<div class="empty"><div class="empty-icon">🧾</div><div class="empty-text">暂无支出记录</div></div>';
   }else{
     const sorted=[...expenses].sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
-    tableHTML='<div class="table-wrap"><table><thead><tr><th>日期</th><th>时间</th><th>金额</th><th>分类</th><th>操作</th></tr></thead><tbody>'
-      +sorted.map(i=>'<tr><td data-label="日期">'+escapeHtml(i.date)+'</td><td data-label="时间">'+escapeHtml(i.time)+'</td><td data-label="金额" class="amount col-amount">'+formatMoney(i.amount)+'</td><td data-label="分类">'+escapeHtml(i.category||'其他')+'</td><td data-label="" class="col-actions"><button class="icon-btn" data-action="edit-expense" data-id="'+i.id+'">✏️</button> <button class="icon-btn danger" data-action="delete-expense" data-id="'+i.id+'">🗑</button></td></tr>').join('')
-      +'</tbody></table></div>';
+    const curMonth=monthKey(todayStr());
+    const groups={};
+    sorted.forEach(i=>{ const mk=monthKey(i.date); if(!groups[mk])groups[mk]=[]; groups[mk].push(i); });
+    const monthKeys=Object.keys(groups).sort((a,b)=>b.localeCompare(a));
+    tableHTML=monthKeys.map(mk=>{
+      const items=groups[mk];
+      const mTotal=items.reduce((s,i)=>s+parseFloat(i.amount),0);
+      const isCur=mk===curMonth;
+      return '<div class="month-group'+(isCur?'':' collapsed')+'" data-month="'+mk+'">'
+        +'<div class="month-group-header" data-action="toggle-month">'
+        +'<span>'+monthLabel(mk)+' · '+items.length+'笔 · '+formatMoney(mTotal)+'</span>'
+        +'<span class="month-group-arrow">▼</span></div>'
+        +'<div class="month-group-body"><div class="table-wrap"><table><thead><tr><th>日期</th><th>时间</th><th>金额</th><th>分类</th><th>操作</th></tr></thead><tbody>'
+        +items.map(i=>'<tr><td data-label="日期">'+dateTwoLine(i.date)+'</td><td data-label="时间">'+escapeHtml(i.time)+'</td><td data-label="金额" class="amount col-amount">'+formatMoney(i.amount)+'</td><td data-label="分类">'+escapeHtml(i.category||'其他')+'</td><td data-label="" class="col-actions"><button class="icon-btn" data-action="edit-expense" data-id="'+i.id+'">✏️</button> <button class="icon-btn danger" data-action="delete-expense" data-id="'+i.id+'">🗑</button></td></tr>').join('')
+        +'</tbody></table></div></div></div>';
+    }).join('');
   }
   return '<div class="page-head"><div><h1>🧾 支出</h1><div class="subtitle">账本首页 · 收入支出同步统计</div></div></div>'
     +'<div class="balance-card"><div class="balance-label">本月结余</div><div class="balance-val">'+formatMoney(balance)+'</div>'
@@ -2019,6 +2075,7 @@ document.addEventListener('click',async function(e){
     case 'cal-expense-prev': state.calOffsetExpense--; render(); break;
     case 'cal-expense-next': state.calOffsetExpense++; render(); break;
     case 'cal-expense-reset': state.calOffsetExpense=0; render(); break;
+    case 'toggle-month': target.closest('.month-group').classList.toggle('collapsed'); break;
 
     case 'add-task': openFormModal('task','add'); break;
     case 'edit-task': { const t=(state.data?.tasks||[]).find(x=>x.id===d.id); if(t) openFormModal('task','edit',t); break; }
