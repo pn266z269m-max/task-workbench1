@@ -428,6 +428,22 @@ tr:hover td{background:#fafbfc}
   .calendar-dot{font-size:9px;line-height:1.2;padding:1px 4px;border-radius:8px}
   .calendar-more{font-size:9px}
   .kitty-chip{font-size:11px;padding:5px 9px}
+  /* 手机端表格保持原表格布局，可横向滚动 */
+  .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{min-width:420px}
+  th{padding:10px 12px;font-size:12px;white-space:nowrap}
+  td{padding:10px 12px;font-size:14px;white-space:nowrap}
+  td.col-note{white-space:normal;min-width:120px;max-width:200px;word-break:break-word;overflow-wrap:break-word}
+  .icon-btn{width:28px;height:28px;font-size:13px}
+  /* 收入支出页面防溢出 */
+  .stat-card{min-width:0}
+  .stat-card .stat-info{min-width:0;flex:1;overflow:hidden}
+  .stat-card .stat-info .stat-val{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .balance-val{word-break:break-all}
+  .section-head{flex-wrap:wrap;gap:6px}
+  .modal{max-width:calc(100vw - 20px);overflow-x:hidden}
+  .modal-body{padding:16px;overflow-x:hidden}
+  .modal-head{padding:14px 16px}
 }
 @media(max-width:420px){
   .main{padding:14px 8px}
@@ -439,6 +455,9 @@ tr:hover td{background:#fafbfc}
   .quick-grid{gap:6px}
   .quick-name{font-size:11px}
   .task-actions{opacity:1}
+  .modal-body{padding:12px}
+  .modal-head{padding:12px 14px}
+  .modal-head h3{font-size:15px}
 }
 </style>
 </head>
@@ -1238,11 +1257,11 @@ function renderIncome(){
     const sorted=[...income].sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
     tableHTML='<div class="table-wrap"><table><thead><tr><th>日期</th><th>时间</th><th>金额</th><th>课时</th><th>备注</th><th>操作</th></tr></thead><tbody>'
       +sorted.map(i=>{
-        return '<tr><td>'+escapeHtml(i.date)+'</td><td>'+escapeHtml(i.time)+'</td>'
-          +'<td class="amount">'+formatMoney(i.amount)+'</td>'
-          +'<td>'+escapeHtml(i.hours||'')+'</td>'
-          +'<td>'+escapeHtml(i.note||'')+'</td>'
-          +'<td><button class="icon-btn" data-action="edit-income" data-id="'+i.id+'">✏️</button> <button class="icon-btn danger" data-action="delete-income" data-id="'+i.id+'">🗑</button></td></tr>';
+        return '<tr><td data-label="日期">'+escapeHtml(i.date)+'</td><td data-label="时间">'+escapeHtml(i.time)+'</td>'
+          +'<td data-label="金额" class="amount col-amount">'+formatMoney(i.amount)+'</td>'
+          +'<td data-label="课时">'+escapeHtml(i.hours||'')+'</td>'
+          +'<td data-label="备注" class="col-note">'+escapeHtml(i.note||'')+'</td>'
+          +'<td data-label="" class="col-actions"><button class="icon-btn" data-action="edit-income" data-id="'+i.id+'">✏️</button> <button class="icon-btn danger" data-action="delete-income" data-id="'+i.id+'">🗑</button></td></tr>';
       }).join('')+'</tbody></table></div>';
   }
 
@@ -1276,7 +1295,7 @@ function renderExpenses(){
   }else{
     const sorted=[...expenses].sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time));
     tableHTML='<div class="table-wrap"><table><thead><tr><th>日期</th><th>时间</th><th>金额</th><th>分类</th><th>备注</th><th>操作</th></tr></thead><tbody>'
-      +sorted.map(i=>'<tr><td>'+escapeHtml(i.date)+'</td><td>'+escapeHtml(i.time)+'</td><td class="amount">'+formatMoney(i.amount)+'</td><td>'+escapeHtml(i.category||'其他')+'</td><td>'+escapeHtml(i.note||'')+'</td><td><button class="icon-btn" data-action="edit-expense" data-id="'+i.id+'">✏️</button> <button class="icon-btn danger" data-action="delete-expense" data-id="'+i.id+'">🗑</button></td></tr>').join('')
+      +sorted.map(i=>'<tr><td data-label="日期">'+escapeHtml(i.date)+'</td><td data-label="时间">'+escapeHtml(i.time)+'</td><td data-label="金额" class="amount col-amount">'+formatMoney(i.amount)+'</td><td data-label="分类">'+escapeHtml(i.category||'其他')+'</td><td data-label="备注" class="col-note">'+escapeHtml(i.note||'')+'</td><td data-label="" class="col-actions"><button class="icon-btn" data-action="edit-expense" data-id="'+i.id+'">✏️</button> <button class="icon-btn danger" data-action="delete-expense" data-id="'+i.id+'">🗑</button></td></tr>').join('')
       +'</tbody></table></div>';
   }
   return '<div class="page-head"><div><h1>🧾 支出</h1><div class="subtitle">账本首页 · 收入支出同步统计</div></div></div>'
@@ -1458,7 +1477,7 @@ function openIncomeDateModal(date){
   const total=list.reduce((s,i)=>s+parseFloat(i.amount),0);
   const body=list.length?'<div class="view-meta"><span class="kitty-chip">当天合计 '+formatMoney(total)+'</span><span class="kitty-chip">'+list.length+' 笔记录</span></div>'
     +'<div class="table-wrap"><table><thead><tr><th>时间</th><th>金额</th><th>课时</th><th>备注</th></tr></thead><tbody>'
-    +list.map(i=>'<tr><td>'+escapeHtml(i.time)+'</td><td class="amount">'+formatMoney(i.amount)+'</td><td>'+escapeHtml(i.hours||'')+'</td><td>'+escapeHtml(i.note||'')+'</td></tr>').join('')+'</tbody></table></div>'
+    +list.map(i=>'<tr><td data-label="时间">'+escapeHtml(i.time)+'</td><td data-label="金额" class="amount col-amount">'+formatMoney(i.amount)+'</td><td data-label="课时">'+escapeHtml(i.hours||'')+'</td><td data-label="备注" class="col-note">'+escapeHtml(i.note||'')+'</td></tr>').join('')+'</tbody></table></div>'
     :'<div class="empty"><div class="empty-icon">💗</div><div class="empty-text">这一天暂无收入记录</div></div>';
   openModal('<div class="modal-head"><h3>'+escapeHtml(date)+' 的收入</h3><button class="modal-close" data-action="close-modal">×</button></div><div class="modal-body">'+body+'</div>');
 }
@@ -1468,7 +1487,7 @@ function openExpenseDateModal(date){
   const total=list.reduce((s,i)=>s+parseFloat(i.amount),0);
   const body=list.length?'<div class="view-meta"><span class="kitty-chip">当天支出 -'+formatMoney(total).replace('¥','¥')+'</span><span class="kitty-chip">'+list.length+' 笔记录</span></div>'
     +'<div class="table-wrap"><table><thead><tr><th>时间</th><th>金额</th><th>分类</th><th>备注</th></tr></thead><tbody>'
-    +list.map(i=>'<tr><td>'+escapeHtml(i.time)+'</td><td class="amount">-'+formatMoney(i.amount)+'</td><td>'+escapeHtml(i.category||'其他')+'</td><td>'+escapeHtml(i.note||'')+'</td></tr>').join('')+'</tbody></table></div>'
+    +list.map(i=>'<tr><td data-label="时间">'+escapeHtml(i.time)+'</td><td data-label="金额" class="amount col-amount">-'+formatMoney(i.amount)+'</td><td data-label="分类">'+escapeHtml(i.category||'其他')+'</td><td data-label="备注" class="col-note">'+escapeHtml(i.note||'')+'</td></tr>').join('')+'</tbody></table></div>'
     :'<div class="empty"><div class="empty-icon">🧾</div><div class="empty-text">这一天暂无支出记录</div></div>';
   openModal('<div class="modal-head"><h3>'+escapeHtml(date)+' 的支出</h3><button class="modal-close" data-action="close-modal">×</button></div><div class="modal-body">'+body+'</div>');
 }
