@@ -1356,10 +1356,10 @@ function renderExpenses(){
         +'</tbody></table></div></div></div>';
     }).join('');
   }
-  return '<div class="page-head"><div><h1>🧾 支出</h1><div class="subtitle">账本首页 · 收入支出同步统计</div></div></div>'
-    +'<div class="balance-card"><div class="balance-label">本月结余</div><div class="balance-val">'+formatMoney(balance)+'</div>'
-    +'<div class="balance-row"><div><div class="balance-mini-label">收入</div><div class="balance-mini-val">'+formatMoney(monthIncome)+'</div></div>'
-    +'<div><div class="balance-mini-label">支出</div><div class="balance-mini-val">'+formatMoney(monthTotal)+'</div></div></div></div>'
+  return '<div class="page-head"><div><h1>🧾 本月结余 '+formatMoney(balance)+'</h1><div class="subtitle">账本首页 · 收入支出同步统计</div></div></div>'
+    +'<div class="balance-card"><div class="balance-label">总支出</div><div class="balance-val">'+formatMoney(total)+'</div>'
+    +'<div class="balance-row"><div><div class="balance-mini-label">本月支出</div><div class="balance-mini-val">'+formatMoney(monthTotal)+'</div></div>'
+    +'<div><div class="balance-mini-label">本月收入</div><div class="balance-mini-val">'+formatMoney(monthIncome)+'</div></div></div></div>'
     +'<div class="budget-card"><div class="budget-head"><span>🐽 本月预算</span><span class="budget-unset">未设置预算</span></div><div class="budget-bar"><div class="budget-used"></div></div><div class="card-meta">已用 '+formatMoney(monthTotal)+'</div></div>'
     +'<div class="money-actions"><button class="money-action expense" data-action="add-expense">－ 记支出</button><button class="money-action income" data-action="add-income">＋ 记收入</button></div>'
     +renderExpenseCalendar()
