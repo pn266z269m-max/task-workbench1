@@ -1326,6 +1326,7 @@ function renderExpenses(){
   const total=expenses.reduce((s,i)=>s+parseFloat(i.amount),0);
   const monthTotal=expenses.filter(i=>monthKey(i.date)===monthKey(todayStr())).reduce((s,i)=>s+parseFloat(i.amount),0);
   const monthIncome=income.filter(i=>monthKey(i.date)===monthKey(todayStr())).reduce((s,i)=>s+parseFloat(i.amount),0);
+  const todayTotal=expenses.filter(i=>i.date===todayStr()).reduce((s,i)=>s+parseFloat(i.amount),0);
   const balance=monthIncome-monthTotal;
   const quickCats=[
     ['餐饮','🍔'],['交通','🚗'],['购物','🛍️'],['医疗','💊'],
@@ -1334,6 +1335,20 @@ function renderExpenses(){
   const quickHTML='<div class="quick-grid">'+quickCats.map(([name,icon])=>
     '<div class="quick-item" data-action="quick-expense" data-category="'+name+'"><div class="quick-icon">'+icon+'</div><div class="quick-name">'+name+'</div></div>'
   ).join('')+'</div>';
+  /* 近7天支出趋势 */
+  const expDays=[];
+  for(let i=6;i>=0;i--){
+    const d=new Date(); d.setDate(d.getDate()-i);
+    const ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const dayTotal=expenses.filter(x=>x.date===ds).reduce((s,x)=>s+parseFloat(x.amount),0);
+    expDays.push({date:ds,label:(d.getMonth()+1)+'/'+d.getDate(),amount:dayTotal});
+  }
+  const expMaxDay=Math.max(...expDays.map(d=>d.amount),1);
+  const expChartHTML='<div class="chart-bars">'+expDays.map(d=>{
+    const h=Math.round(d.amount/expMaxDay*100);
+    return '<div class="chart-bar" title="'+d.date+'"><div class="chart-bar-val">'+(d.amount>0?formatMoney(d.amount):'')+'</div>'
+      +'<div class="chart-bar-fill" style="height:'+h+'%;background:linear-gradient(180deg,var(--danger),#f0a0b0)"></div><div class="chart-bar-label">'+d.label+'</div></div>';
+  }).join('')+'</div>';
   let tableHTML='';
   if(expenses.length===0){
     tableHTML='<div class="empty"><div class="empty-icon">🧾</div><div class="empty-text">暂无支出记录</div></div>';
@@ -1358,11 +1373,13 @@ function renderExpenses(){
   }
   return '<div class="page-head"><div><h1>🧾 本月结余 '+formatMoney(balance)+'</h1><div class="subtitle">账本首页 · 收入支出同步统计</div></div></div>'
     +'<div class="balance-card"><div class="balance-label">总支出</div><div class="balance-val">'+formatMoney(total)+'</div>'
-    +'<div class="balance-row"><div><div class="balance-mini-label">本月支出</div><div class="balance-mini-val">'+formatMoney(monthTotal)+'</div></div>'
+    +'<div class="balance-row" style="grid-template-columns:1fr 1fr 1fr"><div><div class="balance-mini-label">当日支出</div><div class="balance-mini-val">'+formatMoney(todayTotal)+'</div></div>'
+    +'<div><div class="balance-mini-label">本月支出</div><div class="balance-mini-val">'+formatMoney(monthTotal)+'</div></div>'
     +'<div><div class="balance-mini-label">本月收入</div><div class="balance-mini-val">'+formatMoney(monthIncome)+'</div></div></div></div>'
     +'<div class="budget-card"><div class="budget-head"><span>🐽 本月预算</span><span class="budget-unset">未设置预算</span></div><div class="budget-bar"><div class="budget-used"></div></div><div class="card-meta">已用 '+formatMoney(monthTotal)+'</div></div>'
     +'<div class="money-actions"><button class="money-action expense" data-action="add-expense">－ 记支出</button><button class="money-action income" data-action="add-income">＋ 记收入</button></div>'
     +renderExpenseCalendar()
+    +'<div class="income-chart-box"><h3>近7天支出趋势</h3>'+expChartHTML+'</div>'
     +'<div class="section"><div class="section-head"><h2>📝 快捷分类</h2></div>'+quickHTML+'</div>'
     +'<div class="section"><div class="section-head"><h2>支出明细</h2><span class="kitty-chip">总支出 '+formatMoney(total)+' · '+expenses.length+' 笔</span></div>'+tableHTML+'</div>';
 }
