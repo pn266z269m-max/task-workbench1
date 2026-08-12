@@ -1075,22 +1075,37 @@ function renderToday(){
   if(filtered.length===0){
     taskHTML='<div class="empty"><div class="empty-icon">📝</div><div class="empty-text">暂无任务，点击右上角添加吧！</div></div>';
   }else{
-    taskHTML='<div class="task-list">'+filtered.map(t=>{
-      const overdue=isOverdue(t); const todayDl=isTodayDeadline(t.deadline);
-      const cls=t.completed?'completed':overdue?'overdue':todayDl?'today-task':'upcoming';
-      const dateParts=taskDateParts(t.deadline);
-      const catBadge=CATEGORY_COLORS[t.category]||'badge-blue';
-      const deadlineLabel=t.completed?'已完成':dateParts.sub;
-      const deadlineCls=t.completed?'completed-text':overdue?'overdue-text':todayDl?'today-text':'';
-      return '<div class="task-item '+cls+'">'
-        +'<div class="task-check" data-action="toggle-task" data-id="'+t.id+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>'
-        +'<div class="task-date-card"><div class="task-date-main">'+escapeHtml(dateParts.main)+'</div><div class="task-date-sub">'+escapeHtml(deadlineLabel)+'</div></div>'
-        +'<div class="task-body"><div class="task-work-line">'+(t.schedule_time?'<span class="task-time">'+escapeHtml(t.schedule_time)+'</span>':'')+'<span class="task-content">'+escapeHtml(t.title)+'</span></div>'
-        +'<div class="task-meta"><span class="badge '+catBadge+'">'+(CATEGORY_ICONS[t.category]||'')+' '+escapeHtml(t.category)+'</span>'
-        +'<span class="task-deadline '+deadlineCls+'">⏰ '+escapeHtml(deadlineLabel)+' · '+formatDate(t.deadline)+'</span></div></div>'
-        +'<div class="task-actions"><button class="icon-btn" data-action="edit-task" data-id="'+t.id+'" title="编辑">✏️</button>'
-        +'<button class="icon-btn danger" data-action="delete-task" data-id="'+t.id+'" title="删除">🗑</button></div></div>';
-    }).join('')+'</div>';
+    const curMonth=monthKey(todayStr());
+    const groups={};
+    filtered.forEach(t=>{ const mk=monthKey(t.deadline); if(!groups[mk])groups[mk]=[]; groups[mk].push(t); });
+    const monthKeys=Object.keys(groups).sort((a,b)=>b.localeCompare(a));
+    taskHTML=monthKeys.map(mk=>{
+      const items=groups[mk];
+      const doneCount=items.filter(t=>t.completed).length;
+      const isCur=mk===curMonth;
+      return '<div class="month-group'+(isCur?'':' collapsed')+'" data-month="'+mk+'">'
+        +'<div class="month-group-header" data-action="toggle-month">'
+        +'<span>'+monthLabel(mk)+' · '+items.length+'条任务'+(doneCount>0?'（已完成'+doneCount+'）':'')+'</span>'
+        +'<span class="month-group-arrow">▼</span></div>'
+        +'<div class="month-group-body"><div class="task-list">'
+        +items.map(t=>{
+          const overdue=isOverdue(t); const todayDl=isTodayDeadline(t.deadline);
+          const cls=t.completed?'completed':overdue?'overdue':todayDl?'today-task':'upcoming';
+          const dateParts=taskDateParts(t.deadline);
+          const catBadge=CATEGORY_COLORS[t.category]||'badge-blue';
+          const deadlineLabel=t.completed?'已完成':dateParts.sub;
+          const deadlineCls=t.completed?'completed-text':overdue?'overdue-text':todayDl?'today-text':'';
+          return '<div class="task-item '+cls+'">'
+            +'<div class="task-check" data-action="toggle-task" data-id="'+t.id+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>'
+            +'<div class="task-date-card"><div class="task-date-main">'+escapeHtml(dateParts.main)+'</div><div class="task-date-sub">'+escapeHtml(deadlineLabel)+'</div></div>'
+            +'<div class="task-body"><div class="task-work-line">'+(t.schedule_time?'<span class="task-time">'+escapeHtml(t.schedule_time)+'</span>':'')+'<span class="task-content">'+escapeHtml(t.title)+'</span></div>'
+            +'<div class="task-meta"><span class="badge '+catBadge+'">'+(CATEGORY_ICONS[t.category]||'')+' '+escapeHtml(t.category)+'</span>'
+            +'<span class="task-deadline '+deadlineCls+'">⏰ '+escapeHtml(deadlineLabel)+' · '+formatDate(t.deadline)+'</span></div></div>'
+            +'<div class="task-actions"><button class="icon-btn" data-action="edit-task" data-id="'+t.id+'" title="编辑">✏️</button>'
+            +'<button class="icon-btn danger" data-action="delete-task" data-id="'+t.id+'" title="删除">🗑</button></div></div>';
+        }).join('')
+        +'</div></div></div>';
+    }).join('');
   }
 
   const filterBtns=['all','正职工作','副业工作','面试准备'].map(f=>{
